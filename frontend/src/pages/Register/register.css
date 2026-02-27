@@ -1,0 +1,347 @@
+/* ===== RESET ===== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --blue: #1a73e8;
+  --blue-dark: #1558c0;
+  --blue-deeper: #0d3f8f;
+  --blue-light: #e8f0fe;
+  --white: #ffffff;
+  --text: #1a1a2e;
+  --muted: #5f6368;
+  --border: #d0ddf5;
+  --input-border: #c5d5f5;
+}
+
+/* ===== PAGE ===== */
+.register-page {
+  width: 100vw;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f0f6ff;
+  overflow-x: hidden;
+}
+
+/* ===== NAVBAR ===== */
+.register-navbar {
+  width: 100%;
+  height: 64px;
+  background-color: var(--blue);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 60px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.navbar-logo {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--white);
+  cursor: pointer;
+  letter-spacing: 0.01em;
+}
+
+.nav-login-btn {
+  background: transparent;
+  color: var(--white);
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  padding: 8px 22px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.nav-login-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* ===== WRAPPER (2 columns) ===== */
+.register-wrapper {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  min-height: calc(100vh - 64px);
+  align-items: stretch;
+}
+
+/* ===== LEFT PANEL ===== */
+.register-left {
+  width: 38%;
+  background: linear-gradient(150deg, var(--blue) 0%, var(--blue-dark) 50%, var(--blue-deeper) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 48px;
+  position: sticky;
+  top: 64px;
+  height: calc(100vh - 64px);
+  align-self: flex-start;
+}
+
+.left-content {
+  color: var(--white);
+}
+
+.left-title {
+  font-size: clamp(1.6rem, 2.5vw, 2.2rem);
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 18px;
+  letter-spacing: -0.02em;
+}
+
+.left-sub {
+  font-size: 0.95rem;
+  line-height: 1.75;
+  opacity: 0.88;
+  margin-bottom: 36px;
+}
+
+.left-points {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.left-points li {
+  font-size: 0.92rem;
+  opacity: 0.92;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+/* ===== RIGHT PANEL ===== */
+.register-right {
+  width: 62%;
+  padding: 0;
+  overflow-y: auto;
+  background: #f0f6ff;
+  display: flex;
+  align-items: stretch;
+}
+
+.register-form-box {
+  background: var(--white);
+  border-radius: 0;
+  border: none;
+  border-left: 1px solid var(--border);
+  padding: 48px 56px;
+  box-shadow: none;
+  width: 100%;
+}
+
+.form-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+
+.form-sub {
+  font-size: 0.88rem;
+  color: var(--muted);
+  margin-bottom: 36px;
+}
+
+/* ===== SECTION HEADER ===== */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  margin-top: 32px;
+}
+
+.section-header:first-of-type {
+  margin-top: 0;
+}
+
+.section-badge {
+  background: var(--blue);
+  color: var(--white);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 20px;
+  letter-spacing: 0.05em;
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ===== FORM GRID ===== */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  margin-bottom: 8px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.input-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid var(--input-border);
+  border-radius: 7px;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: #fafcff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+
+.input-group input::placeholder {
+  color: #aab4c8;
+  font-size: 0.85rem;
+}
+
+.input-group input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+  background: var(--white);
+}
+
+/* ===== SUBMIT BUTTON ===== */
+.register-btn {
+  width: 100%;
+  margin-top: 28px;
+  padding: 14px;
+  background: var(--blue);
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+
+.register-btn:hover {
+  background: var(--blue-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(26, 115, 232, 0.3);
+}
+
+/* ===== LOGIN LINK ===== */
+.login-link {
+  text-align: center;
+  margin-top: 18px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.login-link span {
+  color: var(--blue);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.login-link span:hover {
+  color: var(--blue-dark);
+}
+
+/* ===== RESPONSIVE ===== */
+
+/* Tablet */
+@media (max-width: 1024px) {
+  .register-navbar {
+    padding: 0 32px;
+  }
+  .register-left {
+    width: 40%;
+    padding: 48px 32px;
+  }
+  .register-right {
+    width: 60%;
+    padding: 0;
+  }
+  .register-form-box {
+    padding: 40px 36px;
+  }
+}
+
+/* Small Tablet */
+@media (max-width: 768px) {
+  .register-wrapper {
+    flex-direction: column;
+  }
+  .register-left {
+    width: 100%;
+    height: auto;
+    position: static;
+    padding: 48px 32px;
+  }
+  .register-right {
+    width: 100%;
+    padding: 0;
+  }
+  .register-form-box {
+    border-left: none;
+    border-top: 1px solid var(--border);
+    padding: 36px 32px;
+  }
+  .register-navbar {
+    padding: 0 24px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 540px) {
+  .register-navbar {
+    padding: 0 16px;
+    height: 56px;
+  }
+  .navbar-logo {
+    font-size: 1.1rem;
+  }
+  .register-left {
+    padding: 36px 20px;
+  }
+  .register-right {
+    padding: 0;
+  }
+  .register-form-box {
+    border-left: none;
+    border-top: 1px solid var(--border);
+    padding: 28px 20px;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .input-group.full-width {
+    grid-column: 1;
+  }
+}
