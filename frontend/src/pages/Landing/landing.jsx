@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import "./Landing.css";
+import { useNavigate } from "react-router-dom";
 
 const features = [
   { icon: "⚡", title: "Lightning Fast", desc: "Calculate incentives for entire teams in seconds. No lag, no waiting — results instantly at your fingertips." },
@@ -42,6 +43,7 @@ const plans = [
 ];
 
 export default function LandingPage() {
+  const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -84,7 +86,7 @@ export default function LandingPage() {
 
         <div className="nav-actions">
           <button className="btn-ghost">Log In</button>
-          <button className="btn-primary">Start Free →</button>
+          <button className="btn-primary" onClick={()=>navigate("/register")}>Register →</button>
         </div>
 
         <button
@@ -109,7 +111,7 @@ export default function LandingPage() {
         </ul>
         <div className="mobile-menu-btns">
           <button className="btn-ghost">Log In</button>
-          <button className="btn-primary">Start Free →</button>
+          <button className="btn-primary" onClick={()=>navigate("/register")}>Register →</button>
         </div>
       </div>
 
