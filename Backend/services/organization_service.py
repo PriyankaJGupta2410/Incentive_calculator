@@ -56,7 +56,11 @@ class OrganizationService:
             status = "success"
             res_data = {
                 "organization_id": org_id,
-                "admin_id": admin_id
+                "admin_id": admin_id,
+                "organization_name":org.name,
+                "admin_email":user.email,
+                "admin_name":user.name,
+                "password": df.at[0, "admin_password"] 
             }
         except Exception as ex:
             message = f"Error in register:{ex}"

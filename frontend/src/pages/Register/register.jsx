@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { registerOrganization } from "../../services/organizationService";
 import "./Register.css";
+
 
 const INDUSTRIES = [
   "Technology", "Healthcare", "Finance", "Education", "Retail",
@@ -351,18 +353,13 @@ export default function RegisterPage() {
     const payload = { ...orgData, ...adminData };
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/organization/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const json = await res.json();
+      const json = await registerOrganization(payload);
       if (json.code === 200) {
         setSuccess(json.res_data);
       } else {
         setApiError(json.message || "Registration failed. Please try again.");
       }
-    } catch {
+    } catch (err) {
       setApiError("Unable to connect to server. Please try again.");
     } finally {
       setLoading(false);
