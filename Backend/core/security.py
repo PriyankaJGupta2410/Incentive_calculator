@@ -1,10 +1,11 @@
 from passlib.context import CryptContext
+from werkzeug.security import generate_password_hash, check_password_hash
+
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 def hash_password(password: str):
-    return pwd_context.hash(password)
+    return generate_password_hash(password)
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-    
+def verify_password(plain_password: str, hashed_password: str):
+    return check_password_hash(hashed_password, plain_password)
