@@ -38,3 +38,33 @@ class UserRepository:
 
         finally:
             conn.close()
+
+    @staticmethod
+    def GETUserbyEmail(email: str):
+        conn = get_connection()
+
+        try:
+            cursor = conn.cursor()
+
+            query = """
+                SELECT *
+                FROM user_master
+                WHERE email = %s
+                LIMIT 1
+            """
+
+            cursor.execute(query, (email,))
+            result = cursor.fetchall()
+
+            df = pd.DataFrame(result)
+
+            if df.empty:
+                return None
+
+            return df.iloc[0].to_dict()
+
+        except Exception as ex:
+            raise Exception(f"Error in GETUserbyEmail: {str(ex)}")
+
+        finally:
+            conn.close()
