@@ -421,23 +421,35 @@ export default function RegisterPage() {
         <div className="register-form-wrap">
 
           {success ? (
-            /* Success State */
+            /* ── Success State ── */
             <div className="success-wrap">
-              <div className="success-icon">🎉</div>
-              <h2 className="success-title">You're all set!</h2>
-              <p className="success-msg">
-                Your organization has been registered successfully. You can now log in with your admin credentials.
-              </p>
-              <div className="success-ids">
-                <div className="success-id-row">
-                  <span className="success-id-label">Organization ID</span>
-                  <span className="success-id-val">#{success.organization_id}</span>
-                </div>
-                <div className="success-id-row">
-                  <span className="success-id-label">Admin ID</span>
-                  <span className="success-id-val">#{success.admin_id}</span>
+              <div className="success-confetti-ring">
+                <div className="success-icon-circle">
+                  <span className="success-icon">🎉</span>
                 </div>
               </div>
+
+              <h2 className="success-title">You're all set!</h2>
+              <p className="success-msg">
+                Your organization has been registered successfully.<br />
+                You can now log in with your admin credentials.
+              </p>
+
+              <div className="success-ids">
+                <div className="success-id-row">
+                  <span className="success-id-label">Organization Name</span>
+                  <span className="success-id-val">{success.organization_name}</span>
+                </div>
+                <div className="success-id-row">
+                  <span className="success-id-label">Admin Name</span>
+                  <span className="success-id-val">{success.admin_name}</span>
+                </div>
+                <div className="success-id-row">
+                  <span className="success-id-label">Admin Email</span>
+                  <span className="success-id-val">{success.admin_email}</span>
+                </div>
+              </div>
+
               <button className="btn-login" onClick={() => navigate("/login")}>
                 Go to Login →
               </button>

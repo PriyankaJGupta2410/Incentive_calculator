@@ -85,7 +85,7 @@ export default function LandingPage() {
         </ul>
 
         <div className="nav-actions">
-          <button className="btn-ghost">Log In</button>
+          <button className="btn-ghost" onClick={()=>navigate("/login")}>Log In</button>
           <button className="btn-primary" onClick={()=>navigate("/register")}>Register →</button>
         </div>
 
