@@ -1,47 +1,48 @@
 import React, { useState } from "react";
 import "./Login.css";
 import { loginUser } from "../../services/authService";
+import { useNavigate } from "react-router-dom";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [focused, setFocused] = useState("");
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setErrorMsg("");
+  e.preventDefault();
+  setErrorMsg("");
 
-    if (email === "" || password === "") {
-      setErrorMsg("Please fill all fields");
-      return;
+  if (email === "" || password === "") {
+    setErrorMsg("Please fill all fields");
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const payload = { email, password };
+    const response = await loginUser(payload);
+
+    if (response?.token) {
+      localStorage.setItem("token", response.token);
     }
 
-    setLoading(true);
-    try {
-      const payload = { email, password };
-      const response = await loginUser(payload);
+    alert("Login Successful!");
+    navigate("/dashboard");
 
-      // Save token if returned by the API
-      if (response?.token) {
-        localStorage.setItem("token", response.token);
-      }
-
-      alert("Login Successful!");
-      // TODO: redirect user e.g. navigate("/dashboard")
-
-    } catch (error) {
-      const message =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Login failed. Please try again.";
-      setErrorMsg(message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (error) {
+    const message =
+      error?.response?.data?.message ||
+      error?.message ||
+      "Login failed. Please try again.";
+    setErrorMsg(message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="login-page">
