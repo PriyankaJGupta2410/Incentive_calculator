@@ -1,5 +1,7 @@
 import { useState } from "react";
 import "./Dashboard.css";
+import { useNavigate } from "react-router-dom";
+
 
 const menuItems = [
   {
@@ -10,6 +12,7 @@ const menuItems = [
       </svg>
     ),
     label: "Dashboard",
+    path: "/dashboard",
   },
   {
     icon: (
@@ -18,6 +21,7 @@ const menuItems = [
       </svg>
     ),
     label: "Upload Data",
+    path:"/upload"
   },
   {
     icon: (
@@ -116,6 +120,7 @@ const tableData = [
 export default function Dashboard() {
   const [active, setActive] = useState("Dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const navigate = useNavigate();
 
   return (
     <div className="db-root">
@@ -141,7 +146,7 @@ export default function Dashboard() {
             <button
               key={item.label}
               className={`db-nav-item ${active === item.label ? "db-nav-active" : ""}`}
-              onClick={() => setActive(item.label)}
+              onClick={() =>navigate(item.path)}
               title={!sidebarOpen ? item.label : ""}
             >
               <span className="db-nav-icon">{item.icon}</span>

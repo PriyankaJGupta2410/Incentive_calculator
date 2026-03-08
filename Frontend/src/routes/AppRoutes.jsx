@@ -3,6 +3,7 @@ import LandingPage from "../pages/Landing/Landing"
 import RegisterPage from "../pages/Register/Register"
 import LoginPage from "../pages/Login/Login"
 import Dashboard from "../pages/Dashboard/Dashboard"
+import Upload_data from "../pages/Upload_data/Upload_data"
 
 function AppRoutes(){
     return(
@@ -11,6 +12,7 @@ function AppRoutes(){
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path= "/dashboard" element={<Dashboard />} />
+            <Route path="/upload" element={<Upload_data />} />
         </Routes>
     )
 }
