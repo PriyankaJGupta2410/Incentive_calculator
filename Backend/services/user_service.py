@@ -18,9 +18,6 @@ class UserService:
                 code = 404
                 message = "User not found"
 
-            print("password: ", password)
-            print("user password: ", user["password"])
-
             if not verify_password(password, user["password"]):
                 code = 401
                 message = "Invalid credentials"
