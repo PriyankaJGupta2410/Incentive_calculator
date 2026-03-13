@@ -13,7 +13,7 @@ def insert_sales_records(records: list,upload_id:str):
         for record in records:
             sql = """
                 INSERT INTO sales (_id,upload_id,employee_id, branch, role, vehicle_model, quantity, sale_date, vehicle_type,created_date)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s,%s, %s, %s, %s, %s)
             """
             values = (
                 str(uuid.uuid4()),

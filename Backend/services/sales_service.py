@@ -1,6 +1,7 @@
 import pandas as pd
 from fastapi import UploadFile
 from repositories.sales_repository import insert_sales_records
+from repositories.model_repository import insert_upload_file
 from utils.file_handler import save_temp_file
 
 
@@ -32,10 +33,14 @@ async def process_sales_file(file: UploadFile):
             "status": "fail",
             "res_data": {}
         }
-    
+
+    total_records = len(df)
+
     df.drop_duplicates(inplace=True)
+
     if (df["quantity"] < 0).any():
         invalid_rows = df[df["quantity"] < 0].index.tolist()
+
         return {
             "message": f"Negative Quantity values in rows: {invalid_rows}",
             "code": 400,
@@ -43,27 +48,41 @@ async def process_sales_file(file: UploadFile):
             "res_data": {}
         }
 
-    # Convert Sale_Date to standard YYYY-MM-DD
+    # Convert Date
     df["sale_date"] = pd.to_datetime(
-    df["sale_date"], errors="coerce"
+        df["sale_date"], errors="coerce"
     ).dt.strftime("%Y-%m-%d")
 
-    # Convert NaN to None for MySQL
-    # Remove rows where date is invalid
+    # Invalid rows
+    invalid_rows = df[df["sale_date"].isna()].index.tolist()
+
+    # Remove invalid rows
     df = df[df["sale_date"].notna()]
 
-    # Convert NaN → None for MySQL
+    # Convert NaN to None
     df = df.where(pd.notnull(df), None)
-    
-    # Insert into DB
+
+    # 🔹 Insert upload file metadata
+    upload_id = insert_upload_file(
+        file_name=file.filename,
+        file_path=file_path,
+        total_records=total_records,
+        invalid_rows_count=len(invalid_rows),
+        invalid_rows=invalid_rows
+    )
+
+    # Insert sales records
     records = df.to_dict(orient="records")
-    inserted_count = insert_sales_records(records)
 
-
+    inserted_count = insert_sales_records(records, upload_id)
 
     return {
         "message": f"{inserted_count} sales records uploaded successfully",
         "code": 200,
         "status": "success",
-        "res_data": {"records_processed": inserted_count}
+        "res_data": {
+            "upload_id": upload_id,
+            "records_processed": inserted_count,
+            "invalid_rows": invalid_rows
+        }
     }
