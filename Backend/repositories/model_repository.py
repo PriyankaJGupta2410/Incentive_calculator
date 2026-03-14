@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 import json
 
-def insert_upload_file(file_name: str, file_path: str, total_records: int, invalid_rows_count: int, invalid_rows: list):
+def insert_upload_file(upload_obj):
 
     conn = get_connection()
     db = conn.cursor()
@@ -23,11 +23,11 @@ def insert_upload_file(file_name: str, file_path: str, total_records: int, inval
 
         values = (
             upload_id,
-            file_name,
-            file_path,
-            total_records,
-            invalid_rows_count,
-            json.dumps(invalid_rows),
+            upload_obj.file_name,
+            upload_obj.file_path,
+            upload_obj.total_records,
+            upload_obj.invalid_rows_count,
+            json.dumps(upload_obj.invalid_rows),
             datetime.now()
         )
 

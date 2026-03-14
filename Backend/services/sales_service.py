@@ -4,6 +4,7 @@ from repositories.sales_repository import insert_sales_records
 from repositories.model_repository import insert_upload_file
 from utils.file_handler import save_temp_file
 from models.sales_model import Sales
+from models.upload_model import upload
 
 
 async def process_sales_file(file: UploadFile):
@@ -65,14 +66,16 @@ async def process_sales_file(file: UploadFile):
     # Convert NaN → None
     df = df.where(pd.notnull(df), None)
 
-    # Insert uploaded file metadata
-    upload_id = insert_upload_file(
-        file_name=file.filename,
-        file_path=file_path,
+    upload_obj = upload(
+        file_name = file.filename,
+        file_path = file_path,
         total_records=total_records,
         invalid_rows_count=len(invalid_rows),
         invalid_rows=invalid_rows
     )
+
+    # Insert uploaded file metadata
+    upload_id = insert_upload_file(upload_obj)
 
     # Convert dataframe rows → Sales Model
     sales_objects = []
