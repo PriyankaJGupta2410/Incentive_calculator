@@ -11,10 +11,12 @@ def insert_upload_file(file_name: str, file_path: str, total_records: int, inval
     upload_id = str(uuid.uuid4())
 
     try:
+
         sql = """
             INSERT INTO uploaded_files (
-                _id, file_name, file_path, total_records,
-                invalid_rows_count, invalid_rows, created_date
+                _id, file_name, file_path,
+                total_records, invalid_rows_count,
+                invalid_rows, created_date
             )
             VALUES (%s,%s,%s,%s,%s,%s,%s)
         """
@@ -30,6 +32,7 @@ def insert_upload_file(file_name: str, file_path: str, total_records: int, inval
         )
 
         db.execute(sql, values)
+
         conn.commit()
 
     except Exception as ex:
@@ -40,3 +43,22 @@ def insert_upload_file(file_name: str, file_path: str, total_records: int, inval
         conn.close()
 
     return upload_id
+
+def get_user_details(current_user_id: str):
+    conn = get_connection()
+    db = conn.cursor()
+    try:
+        sql = "SELECT * FROM user_master WHERE _id = %s"
+        db.execute(sql, (current_user_id,))
+        user = db.fetchone()
+        if user:
+            return {
+                "id": user.get("_id"),
+                "name": user.get("name"),
+                "email": user.get("email")
+            }
+        return None
+    except Exception as ex:
+        raise ex
+    finally:
+        conn.close()

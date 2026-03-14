@@ -3,12 +3,14 @@ from fastapi import UploadFile
 from repositories.sales_repository import insert_sales_records
 from repositories.model_repository import insert_upload_file
 from utils.file_handler import save_temp_file
+from models.sales_model import Sales
 
 
 async def process_sales_file(file: UploadFile):
     """
     Process uploaded CSV/Excel file and insert into DB
     """
+
     file_path = save_temp_file(file)
 
     # Read file
@@ -26,6 +28,7 @@ async def process_sales_file(file: UploadFile):
     ]
 
     missing_cols = [col for col in required_columns if col not in df.columns]
+
     if missing_cols:
         return {
             "message": f"Missing required columns: {missing_cols}",
@@ -59,10 +62,10 @@ async def process_sales_file(file: UploadFile):
     # Remove invalid rows
     df = df[df["sale_date"].notna()]
 
-    # Convert NaN to None
+    # Convert NaN → None
     df = df.where(pd.notnull(df), None)
 
-    # 🔹 Insert upload file metadata
+    # Insert uploaded file metadata
     upload_id = insert_upload_file(
         file_name=file.filename,
         file_path=file_path,
@@ -71,10 +74,26 @@ async def process_sales_file(file: UploadFile):
         invalid_rows=invalid_rows
     )
 
-    # Insert sales records
-    records = df.to_dict(orient="records")
+    # Convert dataframe rows → Sales Model
+    sales_objects = []
 
-    inserted_count = insert_sales_records(records, upload_id)
+    for _, row in df.iterrows():
+
+        sale = Sales(
+            employee_id=row["employee_id"],
+            branch=row["branch"],
+            role=row["role"],
+            email=None,   # CSV does not contain email
+            vehicle_model=row["vehicle_model"],
+            quantity=row["quantity"],
+            sale_date=row["sale_date"],
+            vehicle_type=row["vehicle_type"]
+        )
+
+        sales_objects.append(sale)
+
+    # Insert sales records
+    inserted_count = insert_sales_records(sales_objects, upload_id)
 
     return {
         "message": f"{inserted_count} sales records uploaded successfully",
