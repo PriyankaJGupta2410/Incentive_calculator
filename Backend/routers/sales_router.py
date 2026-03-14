@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, UploadFile, HTTPException
+from fastapi import APIRouter, File, Request, UploadFile, HTTPException,Header
 from services.sales_service import process_sales_file
 from schemas.sales_schema import SalesUploadResponse
 from core.decorators import authentication
@@ -6,7 +6,13 @@ from core.decorators import authentication
 sales_router = APIRouter(prefix="/sales", tags=["Sales"])
 
 @sales_router.post("/upload_sales", response_model=SalesUploadResponse)
-async def upload_sales_data(file: UploadFile = File(...)):
+@authentication
+async def upload_sales_data(
+    request: Request,
+    file: UploadFile = File(...),
+    x_access_token: str = Header(None),
+    current_user_id: str = None
+):
     message = ""
     code = 500
     status = "fail"
