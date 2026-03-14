@@ -4,6 +4,7 @@ import RegisterPage from "../pages/Register/Register"
 import LoginPage from "../pages/Login/Login"
 import Dashboard from "../pages/Dashboard/Dashboard"
 import Upload_data from "../pages/Upload_data/Upload_data"
+import UploadedFilesPage from "../pages/uploadedFiles/Uploadedfilespage"
 
 function AppRoutes(){
     return(
@@ -13,6 +14,7 @@ function AppRoutes(){
             <Route path="/login" element={<LoginPage />} />
             <Route path= "/dashboard" element={<Dashboard />} />
             <Route path="/upload" element={<Upload_data />} />
+            <Route path="/uploaded-files" element={<UploadedFilesPage />} />
         </Routes>
     )
 }

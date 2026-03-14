@@ -55,18 +55,28 @@ const cards = [
 ];
 
 const tableData = [
-  { id: "ASM1002", branch: "Mumbai-North", role: "ASM", units: 45, incentive: "₹61,300", status: "Success" },
-  { id: "RM1015",  branch: "Delhi-West",   role: "RM",  units: 32, incentive: "₹41,200", status: "Success" },
-  { id: "ASM1045", branch: "Pune-Central", role: "ASM", units: 38, incentive: "₹52,700", status: "Success" },
-  { id: "RM1008",  branch: "Chennai-East", role: "RM",  units: 19, incentive: "₹22,500", status: "Pending" },
-  { id: "SM1031",  branch: "Bengaluru-South", role: "SM", units: 27, incentive: "₹35,100", status: "Success" },
-  { id: "ASM1060", branch: "Hyderabad-Central", role: "ASM", units: 11, incentive: "₹14,800", status: "Exception" },
+  { id: "ASM1002", branch: "Mumbai-North",       role: "ASM", units: 45, incentive: "₹61,300", status: "Success"   },
+  { id: "RM1015",  branch: "Delhi-West",          role: "RM",  units: 32, incentive: "₹41,200", status: "Success"   },
+  { id: "ASM1045", branch: "Pune-Central",        role: "ASM", units: 38, incentive: "₹52,700", status: "Success"   },
+  { id: "RM1008",  branch: "Chennai-East",        role: "RM",  units: 19, incentive: "₹22,500", status: "Pending"   },
+  { id: "SM1031",  branch: "Bengaluru-South",     role: "SM",  units: 27, incentive: "₹35,100", status: "Success"   },
+  { id: "ASM1060", branch: "Hyderabad-Central",   role: "ASM", units: 11, incentive: "₹14,800", status: "Exception" },
 ];
 
+/* Total uploaded files count — keep in sync with your global files state / context */
+const UPLOADED_FILES_COUNT = 6;
+
 export default function Dashboard() {
-  const [active, setActive] = useState("Dashboard");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [active, setActive]             = useState("Dashboard");
+  const [sidebarOpen, setSidebarOpen]   = useState(true);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
   const navigate = useNavigate();
+
+  function handleLogout() {
+    setShowLogoutModal(false);
+    navigate("/login");
+  }
 
   return (
     <div className="db-root">
@@ -77,6 +87,7 @@ export default function Dashboard() {
         setActive={setActive}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
+        uploadedFilesCount={UPLOADED_FILES_COUNT}
       />
 
       {/* ── Main ── */}
@@ -88,26 +99,46 @@ export default function Dashboard() {
             <h1 className="db-page-title">Incentive Dashboard</h1>
             <span className="db-breadcrumb">Overview · June 2025</span>
           </div>
+
           <div className="db-topbar-right">
+
+            {/* Export */}
             <button className="db-export-btn">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
               </svg>
               Export
             </button>
+
+            {/* Notification */}
             <div className="db-notif">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
               <span className="db-notif-dot" />
             </div>
+
+            {/* Logout */}
+            <button className="db-logout-btn" onClick={() => setShowLogoutModal(true)}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              Logout
+            </button>
+
           </div>
         </header>
 
-        {/* Cards */}
+        {/* ── Cards ── */}
         <section className="db-cards">
           {cards.map((card, i) => (
-            <div className={`db-card ${card.color}`} key={card.label} style={{ animationDelay: `${i * 80}ms` }}>
+            <div
+              className={`db-card ${card.color}`}
+              key={card.label}
+              style={{ animationDelay: `${i * 80}ms` }}
+            >
               <div className="db-card-top">
                 <div className="db-card-icon">{card.icon}</div>
                 <span className={`db-card-change ${card.positive === true ? "pos" : card.positive === false ? "neg" : "neu"}`}>
@@ -120,7 +151,7 @@ export default function Dashboard() {
           ))}
         </section>
 
-        {/* Table */}
+        {/* ── Table ── */}
         <section className="db-table-section">
           <div className="db-table-header">
             <div>
@@ -201,6 +232,38 @@ export default function Dashboard() {
         </section>
 
       </main>
+
+      {/* ══════════════════════════════════════
+          LOGOUT CONFIRMATION MODAL
+      ══════════════════════════════════════ */}
+      {showLogoutModal && (
+        <div className="db-modal-overlay" onClick={() => setShowLogoutModal(false)}>
+          <div className="db-logout-modal" onClick={e => e.stopPropagation()}>
+            <div className="db-logout-modal-head">
+              <div className="db-logout-modal-icon">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </div>
+              <div className="db-logout-modal-title">Logging out?</div>
+              <div className="db-logout-modal-desc">
+                You'll be signed out of your account. Any unsaved changes will be lost.
+              </div>
+            </div>
+            <div className="db-logout-modal-actions">
+              <button className="db-logout-modal-cancel" onClick={() => setShowLogoutModal(false)}>
+                Stay logged in
+              </button>
+              <button className="db-logout-modal-confirm" onClick={handleLogout}>
+                Yes, logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
