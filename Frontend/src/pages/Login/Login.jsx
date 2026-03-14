@@ -25,9 +25,10 @@ function Login() {
   try {
     const payload = { email, password };
     const response = await loginUser(payload);
-
-    if (response?.token) {
-      localStorage.setItem("token", response.token);
+    console.log("response:", response);
+    if (response?.status === "success" && response?.res_data?.token) {
+      localStorage.setItem("token", response.res_data.token);
+      console.log("token:", response.res_data.token);
     }
 
     alert("Login Successful!");
