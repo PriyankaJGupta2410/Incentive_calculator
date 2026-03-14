@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import "./Login.css";
 import { loginUser } from "../../services/authService";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -28,10 +29,9 @@ function Login() {
     console.log("response:", response);
     if (response?.status === "success" && response?.res_data?.token) {
       localStorage.setItem("token", response.res_data.token);
-      console.log("token:", response.res_data.token);
     }
 
-    alert("Login Successful!");
+    toast.success("Login Successful");
     navigate("/dashboard");
 
   } catch (error) {
