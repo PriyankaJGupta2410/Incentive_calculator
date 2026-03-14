@@ -1,18 +1,21 @@
 import pandas as pd
 from fastapi import UploadFile
 from repositories.sales_repository import insert_sales_records
-from repositories.model_repository import insert_upload_file
+from repositories.model_repository import insert_upload_file,get_user_details
 from utils.file_handler import save_temp_file
 from models.sales_model import Sales
 from models.upload_model import upload
 
 
-async def process_sales_file(file: UploadFile):
+async def process_sales_file(file: UploadFile, current_user_id: str):
     """
     Process uploaded CSV/Excel file and insert into DB
     """
 
     file_path = save_temp_file(file)
+    
+    user_details = get_user_details(current_user_id)
+    print("user_details:",user_details)
 
     # Read file
     if file.filename.endswith(".csv"):
@@ -75,7 +78,7 @@ async def process_sales_file(file: UploadFile):
     )
 
     # Insert uploaded file metadata
-    upload_id = insert_upload_file(upload_obj)
+    upload_id = insert_upload_file(upload_obj, user_details.get("org_id"))
 
     # Convert dataframe rows → Sales Model
     sales_objects = []
@@ -96,7 +99,7 @@ async def process_sales_file(file: UploadFile):
         sales_objects.append(sale)
 
     # Insert sales records
-    inserted_count = insert_sales_records(sales_objects, upload_id)
+    inserted_count = insert_sales_records(sales_objects, upload_id, user_details.get("org_id"))
 
     return {
         "message": f"{inserted_count} sales records uploaded successfully",

@@ -30,7 +30,7 @@ async def upload_sales_data(
                 "res_data": res_data
             }
 
-        result = await process_sales_file(file)
+        result = await process_sales_file(file,current_user_id)
         return result
     except Exception as e:
         message = f"Error processing file: {str(e)}"

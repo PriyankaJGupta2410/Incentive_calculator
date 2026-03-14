@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 import json
 
-def insert_upload_file(upload_obj):
+def insert_upload_file(upload_obj,org_id):
 
     conn = get_connection()
     db = conn.cursor()
@@ -16,9 +16,9 @@ def insert_upload_file(upload_obj):
             INSERT INTO uploaded_files (
                 _id, file_name, file_path,
                 total_records, invalid_rows_count,
-                invalid_rows, created_date
+                invalid_rows,org_id, created_date
             )
-            VALUES (%s,%s,%s,%s,%s,%s,%s)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
         """
 
         values = (
@@ -28,6 +28,7 @@ def insert_upload_file(upload_obj):
             upload_obj.total_records,
             upload_obj.invalid_rows_count,
             json.dumps(upload_obj.invalid_rows),
+            org_id,
             datetime.now()
         )
 
@@ -55,8 +56,10 @@ def get_user_details(current_user_id: str):
             return {
                 "id": user.get("_id"),
                 "name": user.get("name"),
-                "email": user.get("email")
+                "email": user.get("email"),
+                "org_id": user.get("org_id")
             }
+        print("user : ",user)
         return None
     except Exception as ex:
         raise ex

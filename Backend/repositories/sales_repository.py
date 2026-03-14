@@ -2,7 +2,7 @@ from core.database import get_connection
 import uuid
 from datetime import datetime
 
-def insert_sales_records(records: list, upload_id: str):
+def insert_sales_records(records: list, upload_id: str, org_id: str):
 
     conn = get_connection()
     db = conn.cursor()
@@ -13,8 +13,9 @@ def insert_sales_records(records: list, upload_id: str):
         for record in records:
 
             sql = """
-                INSERT INTO sales (_id,upload_id,employee_id, branch, role, vehicle_model, quantity, sale_date, vehicle_type,created_date)
-                VALUES (%s, %s, %s, %s, %s,%s, %s, %s, %s, %s)
+                INSERT INTO sales (_id,upload_id,employee_id, branch, role, 
+                vehicle_model, quantity, sale_date, vehicle_type,created_date,org_id)
+                VALUES (%s, %s, %s, %s, %s,%s, %s, %s, %s, %s,%s)
             """
 
             values = (
@@ -27,7 +28,8 @@ def insert_sales_records(records: list, upload_id: str):
                 int(record.quantity),
                 record.sale_date,
                 record.vehicle_type,
-                datetime.now()
+                datetime.now(),
+                org_id
             )
 
             db.execute(sql, values)
