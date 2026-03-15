@@ -3,6 +3,7 @@ import "./Upload_data.css";
 import Sidebar from "../../components/sidebar/sidebar";
 import { uploadSales } from "../../services/uploadsalesService";
 import { useNavigate } from "react-router-dom";
+import { uploadIncentiveRules } from "../../services/incentiverulesService";
 
 /* ══════════════════════════════════════
    CONSTANTS
@@ -17,6 +18,19 @@ const SALES_REQUIRED_COLUMNS = [
   "Quantity",
   "Sale_Date",
   "Vehicle_Type",
+];
+
+const INCENTIVE_REQUIRED_COLUMNS = [
+  "Rule_ID",
+  "Role",
+  "Vehicle_Type",
+  "Min_Units",
+  "Max_Units",
+  "Incentive_Amount_INR",
+  "Bonus_Per_Unit_INR",
+  "Valid_From",
+  "Valid_To",
+  "Rule_Type"
 ];
 
 /* ══════════════════════════════════════
@@ -318,10 +332,16 @@ export default function Upload_data() {
       setIncentiveLoading(true);
       setIncentiveMsg("");
       /* TODO: replace with actual incentive upload service call */
-      await new Promise(r => setTimeout(r, 1200));
-      setIncentiveMsg("Incentive sales data uploaded successfully.");
-      setIncentiveStatus("success");
-      setUploadedCount(c => c + 1);
+      const res = await uploadIncentiveRules(fd);
+      if(res.status === "success"){
+        setIncentiveMsg(res.message || "Incentive rules uploaded successfully.");
+        setIncentiveStatus("success");
+        setUploadedCount(c => c + 1);
+      }
+      else{
+        setIncentiveMsg(res.message || "Upload failed.")
+        setIncentiveStatus("error");
+      }
     } catch (e) {
       setIncentiveMsg(e.message);
       setIncentiveStatus("error");
@@ -534,7 +554,32 @@ export default function Upload_data() {
                 Incentive rules and slab configuration. Defines payout percentages, thresholds, and role-specific conditions.
               </div>
             </div>
-
+            {/* Required columns display */}
+            <div className="usc-columns-block">
+              <div className="usc-columns-title">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                </svg>
+                Required Columns
+              </div>
+              <div className="usc-columns-grid">
+                {INCENTIVE_REQUIRED_COLUMNS.map(col => (
+                  <span
+                    key={col}
+                    className="usc-col-tag"
+                    style={
+                      salesMissing && salesMissing.includes(col)
+                        ? { background: "#fee2e2", borderColor: "#fecaca", color: "#b91c1c" }
+                        : salesMissing && !salesMissing.includes(col)
+                        ? { background: "#f0fdf4", borderColor: "#86efac", color: "#15803d" }
+                        : {}
+                    }
+                  >
+                    {col}
+                  </span>
+                ))}
+              </div>
+            </div>
             <div className="usc-formats">
               <span className="usc-fmt-pill usc-fmt-csv">CSV</span>
               <span className="usc-fmt-note">· Max 5 MB</span>
