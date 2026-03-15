@@ -20,6 +20,7 @@ const SALES_REQUIRED_COLUMNS = [
   "Vehicle_Type",
 ];
 
+/* Required columns for Incentive Rules CSV */
 const INCENTIVE_REQUIRED_COLUMNS = [
   "Rule_ID",
   "Role",
@@ -30,7 +31,7 @@ const INCENTIVE_REQUIRED_COLUMNS = [
   "Bonus_Per_Unit_INR",
   "Valid_From",
   "Valid_To",
-  "Rule_Type"
+  "Rule_Type",
 ];
 
 /* ══════════════════════════════════════
@@ -55,7 +56,7 @@ function validateExt(file, allowed) {
 }
 
 /**
- * Reads the first line of a CSV / text file and returns the header columns.
+ * Reads the first line of a CSV file and returns the header columns.
  * Works for comma, semicolon, and tab-separated files.
  */
 function parseCSVHeaders(file) {
@@ -236,18 +237,19 @@ export default function Upload_data() {
   const [active, setActive]           = useState("Upload Data");
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  /* ── Card 1: Sales Data (CSV / XLSX / XLS) ── */
-  const [salesFile, setSalesFile]         = useState(null);
-  const [salesMsg, setSalesMsg]           = useState("");
-  const [salesStatus, setSalesStatus]     = useState(""); // "success" | "error"
-  const [salesLoading, setSalesLoading]   = useState(false);
-  const [salesMissing, setSalesMissing]   = useState(null); // null = not checked yet
+  /* ── Card 1: Sales Data (CSV only) ── */
+  const [salesFile, setSalesFile]       = useState(null);
+  const [salesMsg, setSalesMsg]         = useState("");
+  const [salesStatus, setSalesStatus]   = useState(""); // "success" | "error"
+  const [salesLoading, setSalesLoading] = useState(false);
+  const [salesMissing, setSalesMissing] = useState(null); // null = not checked yet
 
-  /* ── Card 2: Incentive Sales Data (CSV / XLSX / XLS) ── */
-  const [incentiveFile, setIncentiveFile]       = useState(null);
-  const [incentiveMsg, setIncentiveMsg]         = useState("");
-  const [incentiveStatus, setIncentiveStatus]   = useState("");
-  const [incentiveLoading, setIncentiveLoading] = useState(false);
+  /* ── Card 2: Incentive Rules Data (CSV only) ── */
+  const [incentiveFile, setIncentiveFile]           = useState(null);
+  const [incentiveMsg, setIncentiveMsg]             = useState("");
+  const [incentiveStatus, setIncentiveStatus]       = useState("");
+  const [incentiveLoading, setIncentiveLoading]     = useState(false);
+  const [incentiveMissing, setIncentiveMissing]     = useState(null); // null = not checked yet
 
   /* ── Card 3: Unstructured Data (TXT only) ── */
   const [unstructFile, setUnstructFile]       = useState(null);
@@ -259,8 +261,9 @@ export default function Upload_data() {
   const [uploadedCount, setUploadedCount] = useState(3);
 
   /* ────────────────────────────────────────
-     When user picks a Sales file → auto-validate columns
+     File select handlers — auto-validate columns on CSV pick
   ──────────────────────────────────────── */
+
   async function handleSalesFileSelect(f) {
     setSalesFile(f);
     setSalesMsg("");
@@ -269,29 +272,44 @@ export default function Upload_data() {
 
     if (!f) return;
 
-    const ext = getExt(f.name);
-    if (ext === "csv") {
+    if (getExt(f.name) === "csv") {
       try {
         const headers = await parseCSVHeaders(f);
-        const missing = findMissingColumns(headers, SALES_REQUIRED_COLUMNS);
-        setSalesMissing(missing);
+        setSalesMissing(findMissingColumns(headers, SALES_REQUIRED_COLUMNS));
       } catch {
-        setSalesMissing([]); // can't read headers, allow upload
+        setSalesMissing([]); // can't read — allow upload, let backend validate
       }
-    } else {
-      // XLSX / XLS — can't parse client-side without a library; skip validation
-      setSalesMissing(null);
     }
+    // Non-CSV: skip client-side validation
+  }
+
+  async function handleIncentiveFileSelect(f) {
+    setIncentiveFile(f);
+    setIncentiveMsg("");
+    setIncentiveStatus("");
+    setIncentiveMissing(null);
+
+    if (!f) return;
+
+    if (getExt(f.name) === "csv") {
+      try {
+        const headers = await parseCSVHeaders(f);
+        setIncentiveMissing(findMissingColumns(headers, INCENTIVE_REQUIRED_COLUMNS));
+      } catch {
+        setIncentiveMissing([]); // can't read — allow upload, let backend validate
+      }
+    }
+    // Non-CSV: skip client-side validation
   }
 
   /* ────────────────────────────────────────
      Upload Handlers
   ──────────────────────────────────────── */
+
   async function handleUploadSales() {
     const extErr = validateExt(salesFile, ["csv"]);
     if (extErr) { setSalesMsg(extErr); setSalesStatus("error"); return; }
 
-    // Block upload if columns are missing
     if (salesMissing && salesMissing.length > 0) {
       setSalesMsg(`Fix missing columns before uploading: ${salesMissing.join(", ")}`);
       setSalesStatus("error");
@@ -325,21 +343,25 @@ export default function Upload_data() {
     const extErr = validateExt(incentiveFile, ["csv"]);
     if (extErr) { setIncentiveMsg(extErr); setIncentiveStatus("error"); return; }
 
+    if (incentiveMissing && incentiveMissing.length > 0) {
+      setIncentiveMsg(`Fix missing columns before uploading: ${incentiveMissing.join(", ")}`);
+      setIncentiveStatus("error");
+      return;
+    }
+
     const fd = new FormData();
     fd.append("file", incentiveFile);
 
     try {
       setIncentiveLoading(true);
       setIncentiveMsg("");
-      /* TODO: replace with actual incentive upload service call */
       const res = await uploadIncentiveRules(fd);
-      if(res.status === "success"){
+      if (res.status === "success") {
         setIncentiveMsg(res.message || "Incentive rules uploaded successfully.");
         setIncentiveStatus("success");
         setUploadedCount(c => c + 1);
-      }
-      else{
-        setIncentiveMsg(res.message || "Upload failed.")
+      } else {
+        setIncentiveMsg(res.message || "Upload failed.");
         setIncentiveStatus("error");
       }
     } catch (e) {
@@ -374,10 +396,14 @@ export default function Upload_data() {
   }
 
   /* ────────────────────────────────────────
-     Determine if Sales upload should be blocked
+     Upload blocked guards
   ──────────────────────────────────────── */
-  const salesBlocked = salesLoading || !salesFile || (salesMissing && salesMissing.length > 0);
+  const salesBlocked     = salesLoading     || !salesFile     || (salesMissing     && salesMissing.length     > 0);
+  const incentiveBlocked = incentiveLoading || !incentiveFile || (incentiveMissing && incentiveMissing.length > 0);
 
+  /* ══════════════════════════════════════
+     RENDER
+  ══════════════════════════════════════ */
   return (
     <div className="upload-data-page">
 
@@ -454,11 +480,12 @@ export default function Upload_data() {
               </div>
             </div>
 
-            {/* Required columns display */}
+            {/* Required columns */}
             <div className="usc-columns-block">
               <div className="usc-columns-title">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                  <polyline points="9 11 12 14 22 4" />
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                 </svg>
                 Required Columns
               </div>
@@ -496,7 +523,6 @@ export default function Upload_data() {
               overClass="usc-dz-over"
             />
 
-            {/* Column validation result */}
             <ColumnValidation missingCols={salesMissing} />
 
             <div className="usc-divider" />
@@ -531,7 +557,7 @@ export default function Upload_data() {
           </div>
 
           {/* ─────────────────────────────
-              CARD 2 — Incentive Sales Data
+              CARD 2 — Incentive Rules Data
           ───────────────────────────── */}
           <div className="usc" style={{ animationDelay: "90ms" }}>
             <div className="usc-strip usc-strip-indigo" />
@@ -554,11 +580,13 @@ export default function Upload_data() {
                 Incentive rules and slab configuration. Defines payout percentages, thresholds, and role-specific conditions.
               </div>
             </div>
-            {/* Required columns display */}
+
+            {/* Required columns — uses incentiveMissing (NOT salesMissing) */}
             <div className="usc-columns-block">
               <div className="usc-columns-title">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                  <polyline points="9 11 12 14 22 4" />
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                 </svg>
                 Required Columns
               </div>
@@ -568,9 +596,9 @@ export default function Upload_data() {
                     key={col}
                     className="usc-col-tag"
                     style={
-                      salesMissing && salesMissing.includes(col)
+                      incentiveMissing && incentiveMissing.includes(col)
                         ? { background: "#fee2e2", borderColor: "#fecaca", color: "#b91c1c" }
-                        : salesMissing && !salesMissing.includes(col)
+                        : incentiveMissing && !incentiveMissing.includes(col)
                         ? { background: "#f0fdf4", borderColor: "#86efac", color: "#15803d" }
                         : {}
                     }
@@ -580,6 +608,7 @@ export default function Upload_data() {
                 ))}
               </div>
             </div>
+
             <div className="usc-formats">
               <span className="usc-fmt-pill usc-fmt-csv">CSV</span>
               <span className="usc-fmt-note">· Max 5 MB</span>
@@ -587,13 +616,16 @@ export default function Upload_data() {
 
             <DropZone
               file={incentiveFile}
-              onFile={f => { setIncentiveFile(f); if (f) setIncentiveMsg(""); }}
+              onFile={handleIncentiveFileSelect}
               accept=".csv"
               dzBase="usc-dz-indigo"
               iconClass="usc-dz-icon-indigo"
               label="Drag & drop incentive file here"
               overClass="usc-dz-over-indigo"
             />
+
+            {/* Column validation result — uses incentiveMissing */}
+            <ColumnValidation missingCols={incentiveMissing} />
 
             <div className="usc-divider" />
 
@@ -605,14 +637,14 @@ export default function Upload_data() {
                   type="file"
                   accept=".csv"
                   hidden
-                  onChange={e => { if (e.target.files[0]) { setIncentiveFile(e.target.files[0]); setIncentiveMsg(""); } e.target.value = ""; }}
+                  onChange={e => { if (e.target.files[0]) handleIncentiveFileSelect(e.target.files[0]); e.target.value = ""; }}
                 />
               </label>
 
               <button
                 className="usc-upload-btn usc-btn-indigo"
                 onClick={handleUploadIncentive}
-                disabled={incentiveLoading || !incentiveFile}
+                disabled={incentiveBlocked}
               >
                 {incentiveLoading
                   ? <><SpinIcon /> Uploading...</>
