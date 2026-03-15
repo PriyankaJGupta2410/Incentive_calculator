@@ -308,6 +308,21 @@ function Upload_data() {
                 <input type="file" accept=".xlsx,.csv,.xls" hidden onChange={e => { if (e.target.files[0]) { setSalesFile(e.target.files[0]); setSalesMsg(""); } e.target.value=""; }} />
               </label>
 
+              {/* Required Columns */}
+              <div className="required-columns">
+                <span>Required Columns:</span>
+
+                <ul>
+                  <li>Employee_ID</li>
+                  <li>Branch</li>
+                  <li>Role</li>
+                  <li>Vehicle_Model</li>
+                  <li>Quantity</li>
+                  <li>Sale_Date</li>
+                  <li>Vehicle_Type</li>
+                </ul>
+              </div>
+
               <button
                 className="upload-step-btn btn-sales"
                 onClick={handleUploadSales}

@@ -614,6 +614,25 @@
   transform: none;
 }
 
+.required-columns{
+  font-size: 13px;
+  color: #555;
+}
+
+.required-columns span{
+  font-weight: 600;
+}
+
+.required-columns ul{
+  margin: 5px 0;
+  padding-left: 18px;
+}
+
+.required-columns li{
+  list-style: disc;
+}
+
+
 /* ══════════════════════════════════════
    RESPONSIVE
 ══════════════════════════════════════ */
