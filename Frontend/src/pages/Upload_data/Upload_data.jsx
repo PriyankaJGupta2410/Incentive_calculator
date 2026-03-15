@@ -274,7 +274,7 @@ export default function Upload_data() {
      Upload Handlers
   ──────────────────────────────────────── */
   async function handleUploadSales() {
-    const extErr = validateExt(salesFile, ["csv", "xlsx", "xls"]);
+    const extErr = validateExt(salesFile, ["csv"]);
     if (extErr) { setSalesMsg(extErr); setSalesStatus("error"); return; }
 
     // Block upload if columns are missing
@@ -308,7 +308,7 @@ export default function Upload_data() {
   }
 
   async function handleUploadIncentive() {
-    const extErr = validateExt(incentiveFile, ["csv", "xlsx", "xls"]);
+    const extErr = validateExt(incentiveFile, ["csv"]);
     if (extErr) { setIncentiveMsg(extErr); setIncentiveStatus("error"); return; }
 
     const fd = new FormData();
@@ -463,15 +463,13 @@ export default function Upload_data() {
 
             <div className="usc-formats">
               <span className="usc-fmt-pill usc-fmt-csv">CSV</span>
-              <span className="usc-fmt-pill usc-fmt-xlsx">XLSX</span>
-              <span className="usc-fmt-pill usc-fmt-xls">XLS</span>
               <span className="usc-fmt-note">· Max 10 MB</span>
             </div>
 
             <DropZone
               file={salesFile}
               onFile={handleSalesFileSelect}
-              accept=".csv,.xlsx,.xls"
+              accept=".csv"
               dzBase="usc-dz-blue"
               iconClass="usc-dz-icon-blue"
               label="Drag & drop sales file here"
@@ -489,7 +487,7 @@ export default function Upload_data() {
                 Browse File
                 <input
                   type="file"
-                  accept=".csv,.xlsx,.xls"
+                  accept=".csv"
                   hidden
                   onChange={e => { if (e.target.files[0]) handleSalesFileSelect(e.target.files[0]); e.target.value = ""; }}
                 />
@@ -539,15 +537,13 @@ export default function Upload_data() {
 
             <div className="usc-formats">
               <span className="usc-fmt-pill usc-fmt-csv">CSV</span>
-              <span className="usc-fmt-pill usc-fmt-xlsx">XLSX</span>
-              <span className="usc-fmt-pill usc-fmt-xls">XLS</span>
               <span className="usc-fmt-note">· Max 5 MB</span>
             </div>
 
             <DropZone
               file={incentiveFile}
               onFile={f => { setIncentiveFile(f); if (f) setIncentiveMsg(""); }}
-              accept=".csv,.xlsx,.xls"
+              accept=".csv"
               dzBase="usc-dz-indigo"
               iconClass="usc-dz-icon-indigo"
               label="Drag & drop incentive file here"
@@ -562,7 +558,7 @@ export default function Upload_data() {
                 Browse File
                 <input
                   type="file"
-                  accept=".csv,.xlsx,.xls"
+                  accept=".csv"
                   hidden
                   onChange={e => { if (e.target.files[0]) { setIncentiveFile(e.target.files[0]); setIncentiveMsg(""); } e.target.value = ""; }}
                 />
