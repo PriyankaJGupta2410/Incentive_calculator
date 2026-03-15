@@ -15,7 +15,6 @@ async def process_sales_file(file: UploadFile, current_user_id: str):
     file_path = save_temp_file(file)
     
     user_details = get_user_details(current_user_id)
-    print("user_details:",user_details)
 
     # Read file
     if file.filename.endswith(".csv"):
