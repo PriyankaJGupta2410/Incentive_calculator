@@ -127,7 +127,7 @@ function Upload_data() {
 
   /* ── Upload Sales Data (existing service) ── */
   async function handleUploadSales() {
-    const err = validateFile(salesFile, ["csv", "xlsx", "xls"], "sales data");
+    const err = validateFile(salesFile, ["csv"], "sales data");
     if (err) { setSalesMsg(err); setSalesStatus("error"); return; }
 
     const formData = new FormData();
@@ -283,9 +283,7 @@ function Upload_data() {
             </div>
 
             <div className="upload-step-formats">
-              <span className="upload-fmt-chip fmt-xlsx">XLSX</span>
               <span className="upload-fmt-chip fmt-csv">CSV</span>
-              <span className="upload-fmt-chip fmt-xls">XLS</span>
               <span className="upload-fmt-label">· Max 10 MB</span>
             </div>
 
