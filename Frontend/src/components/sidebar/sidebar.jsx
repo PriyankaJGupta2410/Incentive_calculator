@@ -48,12 +48,11 @@ const Icons = {
 };
 
 const menuItems = [
-  { label: "Dashboard",        path: "/dashboard",    icon: Icons.Dashboard    },
-  { label: "Upload Data",      path: "/upload",       icon: Icons.Upload       },
-  { label: "Incentive Rules",  path: "/rules",        icon: Icons.Rules        },
-  { label: "Salespeople",      path: "/salespeople",  icon: Icons.Salespeople  },
-  { label: "Calculation Logs", path: "/logs",         icon: Icons.Logs         },
-  { label: "Export Reports",   path: "/reports",      icon: Icons.Reports      },
+  { label: "Dashboard",             path: "/dashboard",         icon: Icons.Dashboard    },
+  { label: "Upload Data",           path: "/upload",            icon: Icons.Upload       },
+  { label: "Incentive Calculator",  path: "/calculator",        icon: Icons.Rules        },
+  { label: "Salespeople",           path: "/salespeople",       icon: Icons.Salespeople  },
+  { label: "Calculation Logs",      path: "/logs",              icon: Icons.Logs         }
 ];
 
 export default function Sidebar({

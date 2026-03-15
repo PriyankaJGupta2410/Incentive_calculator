@@ -2,88 +2,213 @@ import React, { useState, useRef } from "react";
 import "./Upload_data.css";
 import Sidebar from "../../components/sidebar/sidebar";
 import { uploadSales } from "../../services/uploadsalesService";
+import { useNavigate } from "react-router-dom";
 
-/* ── helper: extension from filename ── */
+/* ══════════════════════════════════════
+   CONSTANTS
+══════════════════════════════════════ */
+
+/* Required columns for Sales CSV */
+const SALES_REQUIRED_COLUMNS = [
+  "Employee_ID",
+  "Branch",
+  "Role",
+  "Vehicle_Model",
+  "Quantity",
+  "Sale_Date",
+  "Vehicle_Type",
+];
+
+/* ══════════════════════════════════════
+   HELPERS
+══════════════════════════════════════ */
+function fmtBytes(bytes) {
+  if (!bytes) return "";
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+}
+
 function getExt(name = "") {
   return name.split(".").pop().toLowerCase();
 }
 
-function getChipClass(name) {
-  const e = getExt(name);
-  const map = { xlsx: "chip-xlsx", csv: "chip-csv", txt: "chip-txt", xls: "chip-xls" };
-  return map[e] || "chip-txt";
+function validateExt(file, allowed) {
+  if (!file) return "Please select a file first.";
+  if (!allowed.includes(getExt(file.name)))
+    return `Invalid type. Accepted: ${allowed.map(e => "." + e).join(", ")}`;
+  return null;
 }
 
-function getExtLabel(name) {
-  return getExt(name).toUpperCase().slice(0, 4);
+/**
+ * Reads the first line of a CSV / text file and returns the header columns.
+ * Works for comma, semicolon, and tab-separated files.
+ */
+function parseCSVHeaders(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target.result;
+      const firstLine = text.split(/\r?\n/)[0];
+      // detect delimiter
+      const delimiter = firstLine.includes("\t") ? "\t"
+        : firstLine.includes(";") ? ";"
+        : ",";
+      const headers = firstLine
+        .split(delimiter)
+        .map(h => h.trim().replace(/^"|"$/g, "")); // strip surrounding quotes
+      resolve(headers);
+    };
+    reader.onerror = () => reject(new Error("Could not read file"));
+    // read only first 2KB — enough for headers
+    reader.readAsText(file.slice(0, 2048));
+  });
 }
 
-/* ── reusable DropZone ── */
-function DropZone({ file, onFileChange, accept, iconClass, dragHint, stepKey }) {
-  const [dragOver, setDragOver] = useState(false);
-  const inputRef = useRef(null);
+/**
+ * Checks which required columns are missing from the actual headers.
+ * Case-insensitive comparison.
+ */
+function findMissingColumns(actualHeaders, required) {
+  const normalised = actualHeaders.map(h => h.toLowerCase());
+  return required.filter(col => !normalised.includes(col.toLowerCase()));
+}
 
-  function handleDrop(e) {
-    e.preventDefault();
-    setDragOver(false);
-    const f = e.dataTransfer.files[0];
-    if (f) onFileChange(f);
-  }
+/* ══════════════════════════════════════
+   SHARED ICONS
+══════════════════════════════════════ */
+const SpinIcon = () => (
+  <svg
+    width="14" height="14" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor"
+    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+    style={{ animation: "spin 1s linear infinite" }}
+  >
+    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+  </svg>
+);
+
+const UploadArrow = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="17 8 12 3 7 8" />
+    <line x1="12" y1="3" x2="12" y2="15" />
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+  </svg>
+);
+
+const FileIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+    <polyline points="13 2 13 9 20 9" />
+  </svg>
+);
+
+/* ══════════════════════════════════════
+   REUSABLE DROPZONE
+══════════════════════════════════════ */
+function DropZone({ file, onFile, accept, dzBase, iconClass, label, overClass }) {
+  const [over, setOver] = useState(false);
+  const ref = useRef(null);
+
+  function pick(f) { if (f) onFile(f); }
 
   return (
     <div
-      className={`upload-card-dropzone${dragOver ? " drag-over" : ""}${file ? " has-file" : ""}`}
-      onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={handleDrop}
-      onClick={() => !file && inputRef.current?.click()}
+      className={[
+        "usc-dropzone",
+        dzBase,
+        over ? overClass : "",
+        file ? "usc-dz-has-file" : "",
+      ].filter(Boolean).join(" ")}
+      onDragOver={e => { e.preventDefault(); setOver(true); }}
+      onDragLeave={() => setOver(false)}
+      onDrop={e => { e.preventDefault(); setOver(false); pick(e.dataTransfer.files[0]); }}
+      onClick={() => !file && ref.current?.click()}
     >
       <input
-        ref={inputRef}
+        ref={ref}
         type="file"
         accept={accept}
         hidden
-        onChange={e => { if (e.target.files[0]) onFileChange(e.target.files[0]); e.target.value = ""; }}
+        onChange={e => { pick(e.target.files[0]); e.target.value = ""; }}
       />
 
       {file ? (
         <>
           {/* Done icon */}
-          <div className="upload-dz-icon dz-icon-done">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12"/>
+          <div className="usc-dz-icon usc-dz-icon-done">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
             </svg>
           </div>
-          <p className="upload-dz-text" style={{ color: "#15803d" }}>File ready to upload</p>
+          <p className="usc-dz-label" style={{ color: "#15803d" }}>File ready to upload</p>
 
           {/* File chip */}
-          <div className="upload-file-chip" onClick={e => e.stopPropagation()}>
-            <div className={`upload-file-chip-icon ${getChipClass(file.name)}`}>
-              {getExtLabel(file.name)}
-            </div>
-            <span className="upload-file-chip-name" title={file.name}>{file.name}</span>
+          <div className="usc-file-chip" onClick={e => e.stopPropagation()}>
+            <div className="usc-chip-ext">{getExt(file.name).toUpperCase()}</div>
+            <span className="usc-chip-name" title={file.name}>{file.name}</span>
+            <span className="usc-chip-size">{fmtBytes(file.size)}</span>
             <button
-              className="upload-file-chip-remove"
-              onClick={e => { e.stopPropagation(); onFileChange(null); }}
-              title="Remove file"
+              className="usc-chip-remove"
+              title="Remove"
+              onClick={e => { e.stopPropagation(); onFile(null); }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
           </div>
         </>
       ) : (
         <>
-          <div className={`upload-dz-icon ${iconClass}`}>
+          <div className={`usc-dz-icon ${iconClass}`}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
             </svg>
           </div>
-          <p className="upload-dz-text">{dragHint}</p>
-          <p className="upload-dz-sub">or click to browse</p>
+          <p className="usc-dz-label">{label}</p>
+          <p className="usc-dz-sub">or click to browse</p>
         </>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════
+   COLUMN VALIDATION RESULT UI
+══════════════════════════════════════ */
+function ColumnValidation({ missingCols }) {
+  if (missingCols === null) return null; // not validated yet
+
+  const isValid = missingCols.length === 0;
+
+  return (
+    <div className={`usc-col-validation ${isValid ? "valid" : "invalid"}`}>
+      <div className={`usc-col-val-title ${isValid ? "valid" : "invalid"}`}>
+        {isValid ? (
+          <>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            All required columns found
+          </>
+        ) : (
+          <>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            Missing {missingCols.length} required column{missingCols.length > 1 ? "s" : ""}
+          </>
+        )}
+      </div>
+      {!isValid && (
+        <div className="usc-col-val-missing">
+          {missingCols.map(col => (
+            <span key={col} className="usc-missing-tag">{col}</span>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -92,454 +217,483 @@ function DropZone({ file, onFileChange, accept, iconClass, dragHint, stepKey }) 
 /* ══════════════════════════════════════
    MAIN COMPONENT
 ══════════════════════════════════════ */
-function Upload_data() {
-  const [active, setActive]         = useState("Upload Data");
+export default function Upload_data() {
+  const navigate = useNavigate();
+  const [active, setActive]           = useState("Upload Data");
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  /* ── Step 1: Sales Data ── */
-  const [salesFile, setSalesFile]     = useState(null);
-  const [salesMsg, setSalesMsg]       = useState("");
-  const [salesLoading, setSalesLoading] = useState(false);
-  const [salesStatus, setSalesStatus] = useState(""); // "success" | "error"
+  /* ── Card 1: Sales Data (CSV / XLSX / XLS) ── */
+  const [salesFile, setSalesFile]         = useState(null);
+  const [salesMsg, setSalesMsg]           = useState("");
+  const [salesStatus, setSalesStatus]     = useState(""); // "success" | "error"
+  const [salesLoading, setSalesLoading]   = useState(false);
+  const [salesMissing, setSalesMissing]   = useState(null); // null = not checked yet
 
-  /* ── Step 2: Incentive Rules CSV ── */
-  const [rulesFile, setRulesFile]     = useState(null);
-  const [rulesMsg, setRulesMsg]       = useState("");
-  const [rulesLoading, setRulesLoading] = useState(false);
-  const [rulesStatus, setRulesStatus] = useState("");
+  /* ── Card 2: Incentive Sales Data (CSV / XLSX / XLS) ── */
+  const [incentiveFile, setIncentiveFile]       = useState(null);
+  const [incentiveMsg, setIncentiveMsg]         = useState("");
+  const [incentiveStatus, setIncentiveStatus]   = useState("");
+  const [incentiveLoading, setIncentiveLoading] = useState(false);
 
-  /* ── Step 3: Mock Adhoc Rule TXT ── */
-  const [adhocFile, setAdhocFile]     = useState(null);
-  const [adhocMsg, setAdhocMsg]       = useState("");
-  const [adhocLoading, setAdhocLoading] = useState(false);
-  const [adhocStatus, setAdhocStatus] = useState("");
+  /* ── Card 3: Unstructured Data (TXT only) ── */
+  const [unstructFile, setUnstructFile]       = useState(null);
+  const [unstructMsg, setUnstructMsg]         = useState("");
+  const [unstructStatus, setUnstructStatus]   = useState("");
+  const [unstructLoading, setUnstructLoading] = useState(false);
 
-  /* ─────────────────────────────────── */
+  /* DB file count */
+  const [uploadedCount, setUploadedCount] = useState(3);
 
-  function validateFile(file, allowed, label) {
-    if (!file) return `Please select a ${label} file first.`;
-    const ext = getExt(file.name);
-    if (!allowed.includes(ext)) {
-      return `Invalid file type. Accepted: ${allowed.map(e => "." + e).join(", ")}`;
+  /* ────────────────────────────────────────
+     When user picks a Sales file → auto-validate columns
+  ──────────────────────────────────────── */
+  async function handleSalesFileSelect(f) {
+    setSalesFile(f);
+    setSalesMsg("");
+    setSalesStatus("");
+    setSalesMissing(null);
+
+    if (!f) return;
+
+    const ext = getExt(f.name);
+    if (ext === "csv") {
+      try {
+        const headers = await parseCSVHeaders(f);
+        const missing = findMissingColumns(headers, SALES_REQUIRED_COLUMNS);
+        setSalesMissing(missing);
+      } catch {
+        setSalesMissing([]); // can't read headers, allow upload
+      }
+    } else {
+      // XLSX / XLS — can't parse client-side without a library; skip validation
+      setSalesMissing(null);
     }
-    return null;
   }
 
-  /* ── Upload Sales Data (existing service) ── */
+  /* ────────────────────────────────────────
+     Upload Handlers
+  ──────────────────────────────────────── */
   async function handleUploadSales() {
-    const err = validateFile(salesFile, ["csv"], "sales data");
-    if (err) { setSalesMsg(err); setSalesStatus("error"); return; }
+    const extErr = validateExt(salesFile, ["csv", "xlsx", "xls"]);
+    if (extErr) { setSalesMsg(extErr); setSalesStatus("error"); return; }
 
-    const formData = new FormData();
-    formData.append("file", salesFile);
+    // Block upload if columns are missing
+    if (salesMissing && salesMissing.length > 0) {
+      setSalesMsg(`Fix missing columns before uploading: ${salesMissing.join(", ")}`);
+      setSalesStatus("error");
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append("file", salesFile);
 
     try {
       setSalesLoading(true);
       setSalesMsg("");
-      const response = await uploadSales(formData);
-      if (response.status === "success") {
-        setSalesMsg(response.message);
+      const res = await uploadSales(fd);
+      if (res.status === "success") {
+        setSalesMsg(res.message || "Sales data uploaded successfully.");
         setSalesStatus("success");
+        setUploadedCount(c => c + 1);
       } else {
-        setSalesMsg(response.message || "Upload failed");
+        setSalesMsg(res.message || "Upload failed.");
         setSalesStatus("error");
       }
-    } catch (error) {
-      setSalesMsg(error.message);
+    } catch (e) {
+      setSalesMsg(e.message);
       setSalesStatus("error");
     } finally {
       setSalesLoading(false);
     }
   }
 
-  /* ── Upload Incentive Rules CSV ── */
-  async function handleUploadRules() {
-    const err = validateFile(rulesFile, ["csv"], "incentive rules");
-    if (err) { setRulesMsg(err); setRulesStatus("error"); return; }
+  async function handleUploadIncentive() {
+    const extErr = validateExt(incentiveFile, ["csv", "xlsx", "xls"]);
+    if (extErr) { setIncentiveMsg(extErr); setIncentiveStatus("error"); return; }
 
-    const formData = new FormData();
-    formData.append("file", rulesFile);
+    const fd = new FormData();
+    fd.append("file", incentiveFile);
 
     try {
-      setRulesLoading(true);
-      setRulesMsg("");
-      /* TODO: replace with actual rules upload service call */
-      await new Promise(r => setTimeout(r, 1200)); // simulated delay
-      setRulesMsg("Incentive rules uploaded successfully.");
-      setRulesStatus("success");
-    } catch (error) {
-      setRulesMsg(error.message);
-      setRulesStatus("error");
+      setIncentiveLoading(true);
+      setIncentiveMsg("");
+      /* TODO: replace with actual incentive upload service call */
+      await new Promise(r => setTimeout(r, 1200));
+      setIncentiveMsg("Incentive sales data uploaded successfully.");
+      setIncentiveStatus("success");
+      setUploadedCount(c => c + 1);
+    } catch (e) {
+      setIncentiveMsg(e.message);
+      setIncentiveStatus("error");
     } finally {
-      setRulesLoading(false);
+      setIncentiveLoading(false);
     }
   }
 
-  /* ── Upload Adhoc Rule TXT ── */
-  async function handleUploadAdhoc() {
-    const err = validateFile(adhocFile, ["txt"], "adhoc rule");
-    if (err) { setAdhocMsg(err); setAdhocStatus("error"); return; }
+  async function handleUploadUnstruct() {
+    const extErr = validateExt(unstructFile, ["txt"]);
+    if (extErr) { setUnstructMsg(extErr); setUnstructStatus("error"); return; }
 
-    const formData = new FormData();
-    formData.append("file", adhocFile);
+    const fd = new FormData();
+    fd.append("file", unstructFile);
 
     try {
-      setAdhocLoading(true);
-      setAdhocMsg("");
-      /* TODO: replace with actual adhoc upload service call */
-      await new Promise(r => setTimeout(r, 1000)); // simulated delay
-      setAdhocMsg("Mock adhoc rule uploaded successfully.");
-      setAdhocStatus("success");
-    } catch (error) {
-      setAdhocMsg(error.message);
-      setAdhocStatus("error");
+      setUnstructLoading(true);
+      setUnstructMsg("");
+      /* TODO: replace with actual unstructured upload service call */
+      await new Promise(r => setTimeout(r, 1000));
+      setUnstructMsg("Unstructured data uploaded and stored successfully.");
+      setUnstructStatus("success");
+      setUploadedCount(c => c + 1);
+    } catch (e) {
+      setUnstructMsg(e.message);
+      setUnstructStatus("error");
     } finally {
-      setAdhocLoading(false);
+      setUnstructLoading(false);
     }
   }
 
-  /* ── Pipeline status pills ── */
-  const step1Done = salesStatus === "success";
-  const step2Done = rulesStatus === "success";
-  const step3Done = adhocStatus === "success";
-
-  const allDone = step1Done && step2Done && step3Done;
+  /* ────────────────────────────────────────
+     Determine if Sales upload should be blocked
+  ──────────────────────────────────────── */
+  const salesBlocked = salesLoading || !salesFile || (salesMissing && salesMissing.length > 0);
 
   return (
     <div className="upload-data-page">
 
-      {/* Sidebar */}
       <Sidebar
         active={active}
         setActive={setActive}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
+        uploadedFilesCount={uploadedCount}
       />
 
-      {/* Main Content */}
       <main className="upload-main">
 
-        {/* Topbar */}
+        {/* ── Topbar ── */}
         <header className="upload-topbar">
-          <div>
+          <div className="upload-topbar-left">
             <h1 className="upload-page-title">Upload Data</h1>
             <span className="upload-breadcrumb">Dashboard · Upload Data</span>
           </div>
+          <div className="upload-topbar-right">
+            <button className="upload-calc-link" onClick={() => navigate("/calculator")}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+              Go to Calculator
+            </button>
+          </div>
         </header>
 
-        {/* Pipeline Banner */}
-        <div className="upload-pipeline-banner">
-          <div className="upload-pipeline-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        {/* ── Info Banner ── */}
+        <div className="upload-info-banner">
+          <div className="upload-info-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
           </div>
-          <div className="upload-pipeline-text">
-            <h3>Incentive Calculation Pipeline</h3>
-            <p>Complete all 3 steps below to run the incentive calculation engine. Steps 1 &amp; 2 are required; Step 3 is optional for adhoc overrides.</p>
-          </div>
-          <div className="upload-pipeline-steps">
-            <div className={`upload-pipeline-step-pill ${step1Done ? "done" : !step1Done ? "active" : ""}`}>
-              {step1Done ? "✓" : "1"} Sales Data
-            </div>
-            <div className="upload-pipeline-arrow" />
-            <div className={`upload-pipeline-step-pill ${step2Done ? "done" : step1Done ? "active" : ""}`}>
-              {step2Done ? "✓" : "2"} Rules CSV
-            </div>
-            <div className="upload-pipeline-arrow" />
-            <div className={`upload-pipeline-step-pill ${step3Done ? "done" : step2Done ? "active" : ""}`}>
-              {step3Done ? "✓" : "3"} Adhoc Rule
-            </div>
+          <div className="upload-info-body">
+            <h4>How it works</h4>
+            <p>
+              Upload each data file separately — they're stored in the database by type.
+              Once uploaded, go to the <strong>Incentive Calculator</strong> to select files and run the calculation.
+              <strong> Sales Data</strong> and <strong>Incentive Data</strong> are required; Unstructured Data is optional.
+            </p>
           </div>
         </div>
 
-        {/* Three Step Cards */}
-        <div className="upload-steps-grid">
+        {/* ══ Three Upload Cards ══ */}
+        <div className="upload-sections-grid">
 
-          {/* ── STEP 1: Sales Data ── */}
-          <div className="upload-step-card" style={{ animationDelay: "0ms" }}>
-            <div className="upload-step-strip strip-sales" />
+          {/* ─────────────────────────────
+              CARD 1 — Sales Data
+          ───────────────────────────── */}
+          <div className="usc" style={{ animationDelay: "0ms" }}>
+            <div className="usc-strip usc-strip-blue" />
 
-            <div className="upload-step-head">
-              <div className="upload-step-head-left">
-                <div className="upload-step-num num-sales">1</div>
-                <div className="upload-step-icon icon-sales">
+            <div className="usc-head">
+              <div className="usc-head-left">
+                <div className="usc-icon usc-icon-blue">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                    <circle cx="9" cy="7" r="4"/>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                   </svg>
                 </div>
               </div>
-              <span className="upload-step-badge badge-required">Required</span>
+              <span className="usc-badge usc-badge-req">Required</span>
             </div>
 
-            <div className="upload-step-title-block">
-              <div className="upload-step-title">Sales Data</div>
-              <div className="upload-step-desc">
-                Upload the monthly salesperson performance data. This is the primary input for incentive calculation.
+            <div className="usc-title-block">
+              <div className="usc-title">Sales Data</div>
+              <div className="usc-desc">
+                Monthly salesperson performance data — primary input for incentive calculation.
               </div>
             </div>
 
-            <div className="upload-step-formats">
-              <span className="upload-fmt-chip fmt-csv">CSV</span>
-              <span className="upload-fmt-label">· Max 10 MB</span>
+            {/* Required columns display */}
+            <div className="usc-columns-block">
+              <div className="usc-columns-title">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                </svg>
+                Required Columns
+              </div>
+              <div className="usc-columns-grid">
+                {SALES_REQUIRED_COLUMNS.map(col => (
+                  <span
+                    key={col}
+                    className="usc-col-tag"
+                    style={
+                      salesMissing && salesMissing.includes(col)
+                        ? { background: "#fee2e2", borderColor: "#fecaca", color: "#b91c1c" }
+                        : salesMissing && !salesMissing.includes(col)
+                        ? { background: "#f0fdf4", borderColor: "#86efac", color: "#15803d" }
+                        : {}
+                    }
+                  >
+                    {col}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="usc-formats">
+              <span className="usc-fmt-pill usc-fmt-csv">CSV</span>
+              <span className="usc-fmt-pill usc-fmt-xlsx">XLSX</span>
+              <span className="usc-fmt-pill usc-fmt-xls">XLS</span>
+              <span className="usc-fmt-note">· Max 10 MB</span>
             </div>
 
             <DropZone
               file={salesFile}
-              onFileChange={f => { setSalesFile(f); if (f) setSalesMsg(""); }}
-              accept=".xlsx,.csv,.xls"
-              iconClass="dz-icon-sales"
-              dragHint="Drag & drop sales file here"
-              stepKey="sales"
+              onFile={handleSalesFileSelect}
+              accept=".csv,.xlsx,.xls"
+              dzBase="usc-dz-blue"
+              iconClass="usc-dz-icon-blue"
+              label="Drag & drop sales file here"
+              overClass="usc-dz-over"
             />
 
-            <div className="upload-step-divider" />
+            {/* Column validation result */}
+            <ColumnValidation missingCols={salesMissing} />
 
-            <div className="upload-step-foot">
-              <label className="upload-step-browse">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
-                  <polyline points="13 2 13 9 20 9"/>
-                </svg>
+            <div className="usc-divider" />
+
+            <div className="usc-foot">
+              <label className="usc-browse-label usc-browse-blue">
+                <FileIcon />
                 Browse File
-                <input type="file" accept=".xlsx,.csv,.xls" hidden onChange={e => { if (e.target.files[0]) { setSalesFile(e.target.files[0]); setSalesMsg(""); } e.target.value=""; }} />
+                <input
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  hidden
+                  onChange={e => { if (e.target.files[0]) handleSalesFileSelect(e.target.files[0]); e.target.value = ""; }}
+                />
               </label>
 
-              {/* Required Columns */}
-              <div className="required-columns">
-                <span>Required Columns:</span>
-
-                <ul>
-                  <li>Employee_ID</li>
-                  <li>Branch</li>
-                  <li>Role</li>
-                  <li>Vehicle_Model</li>
-                  <li>Quantity</li>
-                  <li>Sale_Date</li>
-                  <li>Vehicle_Type</li>
-                </ul>
-              </div>
-
               <button
-                className="upload-step-btn btn-sales"
+                className="usc-upload-btn usc-btn-blue"
                 onClick={handleUploadSales}
-                disabled={salesLoading || !salesFile}
+                disabled={salesBlocked}
               >
-                {salesLoading ? (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "spin 1s linear infinite" }}>
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-                    </svg>
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    </svg>
-                    Upload Sales Data
-                  </>
-                )}
+                {salesLoading
+                  ? <><SpinIcon /> Uploading...</>
+                  : <><UploadArrow /> Upload Sales Data</>
+                }
               </button>
 
               {salesMsg && (
-                <p className={`upload-step-message ${salesStatus}`}>{salesMsg}</p>
+                <p className={`usc-message ${salesStatus}`}>{salesMsg}</p>
               )}
             </div>
           </div>
 
-          {/* ── STEP 2: Incentive Rules CSV ── */}
-          <div className="upload-step-card" style={{ animationDelay: "90ms" }}>
-            <div className="upload-step-strip strip-rules" />
+          {/* ─────────────────────────────
+              CARD 2 — Incentive Sales Data
+          ───────────────────────────── */}
+          <div className="usc" style={{ animationDelay: "90ms" }}>
+            <div className="usc-strip usc-strip-indigo" />
 
-            <div className="upload-step-head">
-              <div className="upload-step-head-left">
-                <div className="upload-step-num num-rules">2</div>
-                <div className="upload-step-icon icon-rules">
+            <div className="usc-head">
+              <div className="usc-head-left">
+                <div className="usc-icon usc-icon-indigo">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                    <line x1="16" y1="13" x2="8" y2="13"/>
-                    <line x1="16" y1="17" x2="8" y2="17"/>
-                    <polyline points="10 9 9 9 8 9"/>
+                    <line x1="12" y1="1" x2="12" y2="23" />
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                   </svg>
                 </div>
               </div>
-              <span className="upload-step-badge badge-required">Required</span>
+              <span className="usc-badge usc-badge-req">Required</span>
             </div>
 
-            <div className="upload-step-title-block">
-              <div className="upload-step-title">Incentive Rules</div>
-              <div className="upload-step-desc">
-                Upload the incentive rules configuration file. Defines slabs, conditions, and payout percentages for each role.
+            <div className="usc-title-block">
+              <div className="usc-title">Incentive Sales Data</div>
+              <div className="usc-desc">
+                Incentive rules and slab configuration. Defines payout percentages, thresholds, and role-specific conditions.
               </div>
             </div>
 
-            <div className="upload-step-formats">
-              <span className="upload-fmt-chip fmt-csv">CSV</span>
-              <span className="upload-fmt-label">· Max 5 MB</span>
+            <div className="usc-formats">
+              <span className="usc-fmt-pill usc-fmt-csv">CSV</span>
+              <span className="usc-fmt-pill usc-fmt-xlsx">XLSX</span>
+              <span className="usc-fmt-pill usc-fmt-xls">XLS</span>
+              <span className="usc-fmt-note">· Max 5 MB</span>
             </div>
 
             <DropZone
-              file={rulesFile}
-              onFileChange={f => { setRulesFile(f); if (f) setRulesMsg(""); }}
-              accept=".csv"
-              iconClass="dz-icon-rules"
-              dragHint="Drag & drop rules CSV here"
-              stepKey="rules"
+              file={incentiveFile}
+              onFile={f => { setIncentiveFile(f); if (f) setIncentiveMsg(""); }}
+              accept=".csv,.xlsx,.xls"
+              dzBase="usc-dz-indigo"
+              iconClass="usc-dz-icon-indigo"
+              label="Drag & drop incentive file here"
+              overClass="usc-dz-over-indigo"
             />
 
-            <div className="upload-step-divider" />
+            <div className="usc-divider" />
 
-            <div className="upload-step-foot">
-              <label className="upload-step-browse">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
-                  <polyline points="13 2 13 9 20 9"/>
-                </svg>
+            <div className="usc-foot">
+              <label className="usc-browse-label usc-browse-indigo">
+                <FileIcon />
                 Browse File
-                <input type="file" accept=".csv" hidden onChange={e => { if (e.target.files[0]) { setRulesFile(e.target.files[0]); setRulesMsg(""); } e.target.value=""; }} />
+                <input
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  hidden
+                  onChange={e => { if (e.target.files[0]) { setIncentiveFile(e.target.files[0]); setIncentiveMsg(""); } e.target.value = ""; }}
+                />
               </label>
 
               <button
-                className="upload-step-btn btn-rules"
-                onClick={handleUploadRules}
-                disabled={rulesLoading || !rulesFile}
+                className="usc-upload-btn usc-btn-indigo"
+                onClick={handleUploadIncentive}
+                disabled={incentiveLoading || !incentiveFile}
               >
-                {rulesLoading ? (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "spin 1s linear infinite" }}>
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-                    </svg>
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    </svg>
-                    Upload Rules File
-                  </>
-                )}
+                {incentiveLoading
+                  ? <><SpinIcon /> Uploading...</>
+                  : <><UploadArrow /> Upload Incentive Data</>
+                }
               </button>
 
-              {rulesMsg && (
-                <p className={`upload-step-message ${rulesStatus}`}>{rulesMsg}</p>
+              {incentiveMsg && (
+                <p className={`usc-message ${incentiveStatus}`}>{incentiveMsg}</p>
               )}
             </div>
           </div>
 
-          {/* ── STEP 3: Mock Adhoc Rule TXT ── */}
-          <div className="upload-step-card" style={{ animationDelay: "180ms" }}>
-            <div className="upload-step-strip strip-adhoc" />
+          {/* ─────────────────────────────
+              CARD 3 — Unstructured Data (TXT)
+          ───────────────────────────── */}
+          <div className="usc" style={{ animationDelay: "180ms" }}>
+            <div className="usc-strip usc-strip-amber" />
 
-            <div className="upload-step-head">
-              <div className="upload-step-head-left">
-                <div className="upload-step-num num-adhoc">3</div>
-                <div className="upload-step-icon icon-adhoc">
+            <div className="usc-head">
+              <div className="usc-head-left">
+                <div className="usc-icon usc-icon-amber">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                   </svg>
                 </div>
               </div>
-              <span className="upload-step-badge badge-optional">Optional</span>
+              <span className="usc-badge usc-badge-opt">Optional</span>
             </div>
 
-            <div className="upload-step-title-block">
-              <div className="upload-step-title">Mock Adhoc Rule</div>
-              <div className="upload-step-desc">
-                Upload a plain-text adhoc override rule file. Used to apply one-time adjustments or exceptions outside the standard incentive rules.
+            <div className="usc-title-block">
+              <div className="usc-title">Unstructured Data</div>
+              <div className="usc-desc">
+                Plain-text adhoc override file. Used for one-time adjustments, exception rules, or supplementary context outside standard incentive rules.
               </div>
             </div>
 
-            <div className="upload-step-formats">
-              <span className="upload-fmt-chip fmt-txt">TXT</span>
-              <span className="upload-fmt-label">· Max 2 MB</span>
+            <div className="usc-formats">
+              <span className="usc-fmt-pill usc-fmt-txt">TXT</span>
+              <span className="usc-fmt-note">· Max 2 MB · Plain text only</span>
             </div>
 
             <DropZone
-              file={adhocFile}
-              onFileChange={f => { setAdhocFile(f); if (f) setAdhocMsg(""); }}
+              file={unstructFile}
+              onFile={f => { setUnstructFile(f); if (f) setUnstructMsg(""); }}
               accept=".txt"
-              iconClass="dz-icon-adhoc"
-              dragHint="Drag & drop .txt rule file here"
-              stepKey="adhoc"
+              dzBase="usc-dz-amber"
+              iconClass="usc-dz-icon-amber"
+              label="Drag & drop .txt file here"
+              overClass="usc-dz-over-amber"
             />
 
-            <div className="upload-step-divider" />
+            <div className="usc-divider" />
 
-            <div className="upload-step-foot">
-              <label className="upload-step-browse">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
-                  <polyline points="13 2 13 9 20 9"/>
-                </svg>
+            <div className="usc-foot">
+              <label className="usc-browse-label usc-browse-amber">
+                <FileIcon />
                 Browse File
-                <input type="file" accept=".txt" hidden onChange={e => { if (e.target.files[0]) { setAdhocFile(e.target.files[0]); setAdhocMsg(""); } e.target.value=""; }} />
+                <input
+                  type="file"
+                  accept=".txt"
+                  hidden
+                  onChange={e => { if (e.target.files[0]) { setUnstructFile(e.target.files[0]); setUnstructMsg(""); } e.target.value = ""; }}
+                />
               </label>
 
               <button
-                className="upload-step-btn btn-adhoc"
-                onClick={handleUploadAdhoc}
-                disabled={adhocLoading || !adhocFile}
+                className="usc-upload-btn usc-btn-amber"
+                onClick={handleUploadUnstruct}
+                disabled={unstructLoading || !unstructFile}
               >
-                {adhocLoading ? (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "spin 1s linear infinite" }}>
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-                    </svg>
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    </svg>
-                    Upload Adhoc Rule
-                  </>
-                )}
+                {unstructLoading
+                  ? <><SpinIcon /> Uploading...</>
+                  : <><UploadArrow /> Upload Unstructured Data</>
+                }
               </button>
 
-              {adhocMsg && (
-                <p className={`upload-step-message ${adhocStatus}`}>{adhocMsg}</p>
+              {unstructMsg && (
+                <p className={`usc-message ${unstructStatus}`}>{unstructMsg}</p>
               )}
             </div>
           </div>
 
-        </div>
+        </div>{/* /upload-sections-grid */}
 
-        {/* Run Calculation CTA */}
-        <div className="upload-run-section">
-          <span className="upload-run-hint">
-            {allDone
-              ? "All files uploaded — ready to calculate!"
-              : <>Complete <span>Steps 1 &amp; 2</span> to run calculation</>
-            }
-          </span>
-          <button
-            className="upload-run-btn"
-            disabled={!(step1Done && step2Done)}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        {/* ── Library Summary Bar ── */}
+        <div className="upload-library-bar">
+          <div className="upload-lib-left">
+            <div className="upload-lib-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+              </svg>
+            </div>
+            <div className="upload-lib-stat">
+              <strong>{uploadedCount}</strong>
+              <span>files stored in database</span>
+            </div>
+            <div className="upload-lib-sep" />
+            <div className="upload-lib-pills">
+              <div className="upload-lib-pill lib-pill-blue">
+                <div className="lib-pill-dot dot-blue" /> Sales Files
+              </div>
+              <div className="upload-lib-pill lib-pill-indigo">
+                <div className="lib-pill-dot dot-indigo" /> Incentive Files
+              </div>
+              <div className="upload-lib-pill lib-pill-amber">
+                <div className="lib-pill-dot dot-amber" /> Unstructured Files
+              </div>
+            </div>
+          </div>
+
+          <button className="upload-lib-go-btn" onClick={() => navigate("/calculator")}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
             </svg>
-            Run Incentive Calculation
+            Go to Calculator →
           </button>
         </div>
 
       </main>
 
-      {/* Spinner keyframe injected inline for portability */}
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-
     </div>
   );
 }
-
-export default Upload_data;
