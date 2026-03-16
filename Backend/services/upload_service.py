@@ -251,27 +251,43 @@ async def process_incentive_file(file: UploadFile, current_user_id: str):
     }
 
 
-async def GETuploadedfiles(current_user_id):
+async def get_uploaded_files_service(current_user_id: str):
+
     message = ""
     code = 500
     status = "fail"
     res_data = {}
+
     try:
+
         user_details = get_user_details(current_user_id)
+
         if not user_details:
             message = "User not found"
             code = 404
             status = "fail"
-            res_data = {}
-            return {"message": message, "code": code, "status": status, "res_data": res_data}
-        
+            return {
+                "message": message,
+                "code": code,
+                "status": status,
+                "res_data": res_data
+            }
+
         org_id = user_details.get("org_id")
+
         files = get_uploaded_files(org_id)
+
         message = "Files fetched successfully"
         code = 200
         status = "success"
         res_data = {"files": files}
-        return {"message": message, "code": code, "status": status, "res_data": res_data}
+
     except Exception as ex:
-        message = f"Error fetching GETuploadedfiles:{str(ex)}"
-    return {"message": message, "code": code, "status": status, "res_data": res_data}
+        message = f"Error fetching uploaded files: {str(ex)}"
+
+    return {
+        "message": message,
+        "code": code,
+        "status": status,
+        "res_data": res_data
+    }
