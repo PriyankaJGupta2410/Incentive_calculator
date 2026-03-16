@@ -5,7 +5,7 @@ export const uploadIncentiveRules = async (payload) => {
   try {
 
     const res = await axios.post(
-      `${BASE_URL}/incentives/upload_incentive`,
+      `${BASE_URL}/upload/upload_incentive`,
       payload,
       {
         headers: {

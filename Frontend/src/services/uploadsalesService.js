@@ -5,7 +5,7 @@ export const uploadSales = async (payload) => {
   try {
 
     const res = await axios.post(
-      `${BASE_URL}/sales/upload_sales`,
+      `${BASE_URL}/upload/upload_sales`,
       payload,
       {
         headers: {

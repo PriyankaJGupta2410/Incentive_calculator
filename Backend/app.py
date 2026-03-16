@@ -18,14 +18,12 @@ app.add_middleware(
 ########################## IMPORT ROUTES #################
 from routers import organization_router
 from routers import user_router
-from routers import sales_router
-from routers import incentive_router
+from routers import upload_router
 
 ################### Declar Routes ####################
 app.include_router(organization_router.organizationrouter)
 app.include_router(user_router.userRouter)
-app.include_router(sales_router.sales_router)
-app.include_router(incentive_router.incentive_router)
+app.include_router(upload_router.upload_router)
 
 @app.get("/")
 async def index():
