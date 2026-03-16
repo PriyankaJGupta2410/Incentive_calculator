@@ -3,6 +3,9 @@ import uuid
 from datetime import datetime
 import json
 
+
+################################ MODEL REPOSITORY #########################################
+
 def insert_upload_file(upload_obj,org_id):
 
     conn = get_connection()
@@ -63,28 +66,4 @@ def get_user_details(current_user_id: str):
     except Exception as ex:
         raise ex
     finally:
-        conn.close()
-
-def get_uploaded_files(org_id: str):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    try:
-        sql = """
-            SELECT * 
-            FROM uploaded_files
-            WHERE org_id = %s
-        """
-
-        cursor.execute(sql, (org_id,))
-        result = cursor.fetchall()
-
-        return result
-
-    except Exception as ex:
-        conn.rollback()
-        raise ex
-
-    finally:
-        cursor.close()
         conn.close()

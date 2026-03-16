@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from schemas.organization_schema import RegisterOrganizationSchema
+from schemas.Request.organization_schema import RegisterOrganizationSchema
 from services.organization_service import OrganizationService
 
 organizationrouter = APIRouter(prefix="/organization", tags=["Organization"])

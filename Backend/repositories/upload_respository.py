@@ -98,3 +98,26 @@ def insert_incentive_records(records:list,upload_id:str,org_id:str):
         conn.close()
     return inserted_count
     
+def get_uploaded_files(org_id: str):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        sql = """
+            SELECT * 
+            FROM uploaded_files
+            WHERE org_id = %s
+        """
+
+        cursor.execute(sql, (org_id,))
+        result = cursor.fetchall()
+
+        return result
+
+    except Exception as ex:
+        conn.rollback()
+        raise ex
+
+    finally:
+        cursor.close()
+        conn.close()

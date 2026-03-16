@@ -1,14 +1,13 @@
 from fastapi import APIRouter, File, Request, UploadFile, HTTPException,Header
 from services.upload_service import process_sales_file,process_incentive_file
-from schemas.sales_schema import SalesUploadResponse
-from schemas.incentive_schema import incentiveUploadResponse
+from schemas.Response.common_response import APIResponse
 from core.decorators import authentication
 
 upload_router = APIRouter(prefix="/upload", tags=["upload"])
 
 ##################################### UPLOAD API #########################################
 
-@upload_router.post("/upload_sales", response_model=SalesUploadResponse)
+@upload_router.post("/upload_sales", response_model=APIResponse)
 @authentication
 async def upload_sales_data(
     request: Request,
@@ -44,7 +43,7 @@ async def upload_sales_data(
         "res_data": res_data
     }
 
-@upload_router.post("/upload_incentive",response_model=incentiveUploadResponse)
+@upload_router.post("/upload_incentive",response_model=APIResponse)
 @authentication
 async def upload_incentive(
     request: Request,
