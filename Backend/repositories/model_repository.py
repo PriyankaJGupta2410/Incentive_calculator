@@ -19,9 +19,9 @@ def insert_upload_file(upload_obj,org_id):
             INSERT INTO uploaded_files (
                 _id, file_name, file_path,
                 total_records, invalid_rows_count,
-                invalid_rows,org_id, created_date,file_type
+                invalid_rows,org_id, created_date
             )
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
         """
 
         values = (
@@ -32,8 +32,7 @@ def insert_upload_file(upload_obj,org_id):
             upload_obj.invalid_rows_count,
             json.dumps(upload_obj.invalid_rows),
             org_id,
-            datetime.now(),
-            upload_obj.file_type
+            datetime.now()
         )
 
         db.execute(sql, values)
