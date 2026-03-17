@@ -2,7 +2,7 @@ from core.database import get_connection
 import uuid
 from datetime import datetime
 import json
-
+import pandas as pd
 
 ################################ MODEL REPOSITORY #########################################
 
@@ -54,8 +54,10 @@ def get_user_details(current_user_id: str):
     try:
         sql = "SELECT * FROM user_master WHERE _id = %s"
         db.execute(sql, (current_user_id,))
-        user = db.fetchone()
-        if user:
+        user = db.fetchall()
+        df = pd.DataFrame(user)
+        if not df.empty:
+            user = df.to_dict(orient="records")[0]
             return {
                 "id": user.get("_id"),
                 "name": user.get("name"),

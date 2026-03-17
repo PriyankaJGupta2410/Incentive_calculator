@@ -124,7 +124,6 @@ async def process_incentive_file(file: UploadFile, current_user_id: str):
     # Read CSV safely
     if file.filename.endswith(".csv"):
         df = pd.read_csv(file_path)
-        print("df:",df)
     else:
         return {
             "message": "Only CSV files are allowed",

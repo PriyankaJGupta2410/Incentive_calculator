@@ -1,6 +1,7 @@
 from core.database import get_connection
 import uuid
 from datetime import datetime
+import pandas as pd
 
 ########################### UPLOAD REPOSITORY ##################
 
@@ -111,7 +112,10 @@ def get_uploaded_files(org_id: str):
 
         cursor.execute(sql, (org_id,))
         result = cursor.fetchall()
-
+        df = pd.DataFrame(result)
+        if not df.empty:
+            result = df.to_dict(orient="records")
+            
         return result
 
     except Exception as ex:
