@@ -51,6 +51,7 @@ CREATE TABLE uploaded_files (
     invalid_rows_count INT DEFAULT 0,
     invalid_rows JSON,
     org_id varchar(50) Not null,
+    file_type VARCHAR(50) NOT NULL,
     created_date DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

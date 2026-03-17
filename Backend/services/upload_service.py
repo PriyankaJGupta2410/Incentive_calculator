@@ -75,7 +75,8 @@ async def process_sales_file(file: UploadFile, current_user_id: str):
         file_path = file_path,
         total_records=total_records,
         invalid_rows_count=len(invalid_rows),
-        invalid_rows=invalid_rows
+        invalid_rows=invalid_rows,
+        file_type="sales"
     )
 
     # Insert uploaded file metadata
@@ -204,7 +205,8 @@ async def process_incentive_file(file: UploadFile, current_user_id: str):
         file_path=file_path,
         total_records=total_records,
         invalid_rows_count=len(invalid_rows),
-        invalid_rows=invalid_rows.to_dict(orient="records")
+        invalid_rows=invalid_rows.to_dict(orient="records"),
+        file_type="incentive"
     )
 
     # Insert uploaded file record
