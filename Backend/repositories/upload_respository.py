@@ -125,3 +125,26 @@ def get_uploaded_files(org_id: str):
     finally:
         cursor.close()
         conn.close()
+
+def get_uploaded_file_details(upload_id:str,org_id:str):
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        sql = """
+            SELECT * 
+            FROM uploaded_files
+            WHERE _id = %s AND org_id = %s
+        """
+        cursor.execute(sql, (upload_id, org_id))
+        result = cursor.fetchone()
+        df = pd.DataFrame([result])
+        if not df.empty:
+            result = df.to_dict(orient="records")[0]
+        return result
+
+    except Exception as ex:
+        conn.rollback()
+        raise ex
+    finally:
+        cursor.close()
+        conn.close()

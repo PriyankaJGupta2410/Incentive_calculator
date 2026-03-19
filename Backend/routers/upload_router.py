@@ -1,5 +1,5 @@
 from fastapi import APIRouter, File, Request, UploadFile, HTTPException,Header
-from services.upload_service import process_sales_file,process_incentive_file,get_uploaded_files_service
+from services.upload_service import process_sales_file,process_incentive_file,get_uploaded_files_service,get_uploaded_file_details_service
 from schemas.Response.common_response import APIResponse
 from core.decorators import authentication
 
@@ -100,6 +100,35 @@ async def GETuploadedFiles(
 
     except Exception as ex:
         message = f"Error GETuploadedFiles:{str(ex)}"
+    return {
+        "message": message,
+        "code": code,
+        "status": status,
+        "res_data": res_data
+    }
+
+@upload_router.get("/GETuploadedFileDetails",response_model=APIResponse)
+@authentication
+async def GETuploadedFileDetails(
+    request:Request,
+    upload_id: str,
+    x_access_token:str = Header(None),
+    current_user_id:str=None
+):
+    message = ""
+    code = 500
+    status = "fail"
+    res_data = {}
+    try:
+        result = await get_uploaded_file_details_service(upload_id,current_user_id)
+        message = "Uploaded file details retrieved successfully"
+        code = 200
+        status = "success"
+        res_data = {
+            "file_details": result
+        }
+    except Exception as ex:
+        message = f"Error GETuploadedFileDetails:{str(ex)}"
     return {
         "message": message,
         "code": code,

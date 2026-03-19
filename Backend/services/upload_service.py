@@ -1,6 +1,6 @@
 import pandas as pd
 from fastapi import UploadFile
-from repositories.upload_respository import insert_sales_records,insert_incentive_records,get_uploaded_files
+from repositories.upload_respository import insert_sales_records,insert_incentive_records,get_uploaded_files,get_uploaded_file_details
 from repositories.model_repository import insert_upload_file,get_user_details
 from utils.file_handler import save_temp_file
 from models.sales_model import Sales
@@ -285,6 +285,57 @@ async def get_uploaded_files_service(current_user_id: str):
 
     except Exception as ex:
         message = f"Error fetching uploaded files: {str(ex)}"
+
+    return {
+        "message": message,
+        "code": code,
+        "status": status,
+        "res_data": res_data
+    }
+
+async def get_uploaded_file_details_service(upload_id: str, current_user_id: str):
+    message = ""
+    code = 500
+    status = "fail"
+    res_data = {}
+
+    try:
+
+        user_details = get_user_details(current_user_id)
+
+        if not user_details:
+            message = "User not found"
+            code = 404
+            status = "fail"
+            return {
+                "message": message,
+                "code": code,
+                "status": status,
+                "res_data": res_data
+            }
+
+        org_id = user_details.get("org_id")
+
+        file_details = get_uploaded_file_details(upload_id, org_id)
+
+        if not file_details:
+            message = "File not found"
+            code = 404
+            status = "fail"
+            return {
+                "message": message,
+                "code": code,
+                "status": status,
+                "res_data": res_data
+            }
+
+        message = "File details fetched successfully"
+        code = 200
+        status = "success"
+        res_data = {"file_details": file_details}
+
+    except Exception as ex:
+        message = f"Error fetching file details: {str(ex)}"
 
     return {
         "message": message,
