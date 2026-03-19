@@ -293,20 +293,23 @@ async def get_uploaded_files_service(current_user_id: str):
         "res_data": res_data
     }
 
-async def get_uploaded_file_details_service(upload_id: str, current_user_id: str):
+async def get_uploaded_file_details_service(
+    upload_id: str,
+    current_user_id: str,
+    limit: int = 100,
+    offset: int = 0
+):
     message = ""
     code = 500
     status = "fail"
     res_data = {}
 
     try:
-
         user_details = get_user_details(current_user_id)
 
         if not user_details:
             message = "User not found"
             code = 404
-            status = "fail"
             return {
                 "message": message,
                 "code": code,
@@ -316,12 +319,11 @@ async def get_uploaded_file_details_service(upload_id: str, current_user_id: str
 
         org_id = user_details.get("org_id")
 
-        file_details = get_uploaded_file_details(upload_id, org_id)
+        file_details = get_uploaded_file_details(upload_id, org_id, limit, offset)
 
         if not file_details:
             message = "File not found"
             code = 404
-            status = "fail"
             return {
                 "message": message,
                 "code": code,
@@ -332,10 +334,10 @@ async def get_uploaded_file_details_service(upload_id: str, current_user_id: str
         message = "File details fetched successfully"
         code = 200
         status = "success"
-        res_data = {"file_details": file_details}
+        res_data = file_details
 
     except Exception as ex:
-        message = f"Error fetching file details: {str(ex)}"
+        message = f"Error fetching uploaded files: {str(ex)}"
 
     return {
         "message": message,

@@ -130,25 +130,72 @@ def get_uploaded_files(org_id: str):
         cursor.close()
         conn.close()
 
-def get_uploaded_file_details(upload_id:str,org_id:str):
+def get_uploaded_file_details(upload_id: str, org_id: str, limit: int = 100, offset: int = 0):
     conn = get_connection()
     cursor = conn.cursor()
+
     try:
+        # File details
         sql = """
             SELECT * 
             FROM uploaded_files
             WHERE _id = %s AND org_id = %s
         """
         cursor.execute(sql, (upload_id, org_id))
-        result = cursor.fetchone()
-        df = pd.DataFrame([result])
-        if not df.empty:
-            result = df.to_dict(orient="records")[0]
-        return result
+        file_result = cursor.fetchall()
+
+        if not file_result:
+            return None
+
+        columns = [col[0] for col in cursor.description]
+        df_file = pd.DataFrame(file_result, columns=columns)
+        file_details = df_file.to_dict(orient="records")[0]
+
+        file_type = file_details.get("file_type")
+
+        # Fetch data
+        if file_type == "sales":
+            sql = """
+                SELECT * 
+                FROM sales
+                WHERE upload_id = %s AND org_id = %s
+                LIMIT %s OFFSET %s
+            """
+        elif file_type == "incentive":
+            sql = """
+                SELECT * 
+                FROM incentives
+                WHERE upload_id = %s AND org_id = %s
+                LIMIT %s OFFSET %s
+            """
+        else:
+            return {
+                "file_details": file_details,
+                "data": []
+            }
+
+        cursor.execute(sql, (upload_id, org_id, limit, offset))
+        result = cursor.fetchall()
+
+        if result:
+            columns = [col[0] for col in cursor.description]
+            df_data = pd.DataFrame(result, columns=columns)
+            data = df_data.to_dict(orient="records")
+        else:
+            data = []
+
+        return {
+            "file_details": file_details,
+            "data": data,
+            "count": len(data),
+            "limit": limit,
+            "offset": offset
+        }
 
     except Exception as ex:
         conn.rollback()
         raise ex
+
     finally:
         cursor.close()
         conn.close()
