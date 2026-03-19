@@ -16,27 +16,29 @@ def insert_sales_records(records: list, upload_id: str, org_id: str):
 
         for record in records:
 
+            df = pd.DataFrame([{
+                "_id": str(uuid.uuid4()),
+                "upload_id": upload_id,
+                "employee_id":record.employee_id,
+                "branch": record.branch,
+                "role": record.role,
+                "vehicle_model": record.vehicle_model,
+                "quantity": int(record.quantity),
+                "sale_date": record.sale_date,
+                "vehicle_type": record.vehicle_type,
+                "created_date": datetime.now(),
+                "org_id": org_id
+            }])
+
             sql = """
                 INSERT INTO sales (_id,upload_id,employee_id, branch, role, 
                 vehicle_model, quantity, sale_date, vehicle_type,created_date,org_id)
                 VALUES (%s, %s, %s, %s, %s,%s, %s, %s, %s, %s,%s)
             """
 
-            values = (
-                str(uuid.uuid4()),
-                upload_id,
-                record.employee_id,
-                record.branch,
-                record.role,
-                record.vehicle_model,
-                int(record.quantity),
-                record.sale_date,
-                record.vehicle_type,
-                datetime.now(),
-                org_id
-            )
+            values = df.values.tolist()
 
-            db.execute(sql, values)
+            db.executemany(sql, values)
 
             inserted_count += 1
 
@@ -60,6 +62,23 @@ def insert_incentive_records(records:list,upload_id:str,org_id:str):
     try:
         for record in records:
 
+            df = pd.DataFrame([{
+                "_id": str(uuid.uuid4()),
+                "upload_id": upload_id,
+                "rule_id": record.rule_id,
+                "role": record.role,
+                "vehicle_type": record.vehicle_type,
+                "min_units": int(record.min_units),
+                "max_units": int(record.max_units),
+                "incentive_amount_inr": float(record.incentive_amount_inr),
+                "bonus_per_unit_inr": float(record.bonus_per_unit_inr),
+                "valid_from": record.valid_from,
+                "valid_to": record.valid_to,
+                "rule_type": record.rule_type,
+                "created_date": datetime.now(),
+                "org_id": org_id
+            }])
+
             sql = """
                 INSERT INTO incentives (
                     _id, upload_id, rule_id, role, vehicle_type,
@@ -70,24 +89,9 @@ def insert_incentive_records(records:list,upload_id:str,org_id:str):
                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             """
 
-            values = (
-                str(uuid.uuid4()),
-                upload_id,
-                record.rule_id,
-                record.role,
-                record.vehicle_type,
-                int(record.min_units),
-                int(record.max_units),
-                float(record.incentive_amount_inr),
-                float(record.bonus_per_unit_inr),
-                record.valid_from,
-                record.valid_to,
-                record.rule_type,
-                datetime.now(),
-                org_id
-            )
+            values = df.values.tolist()
 
-            db.execute(sql, values)
+            db.executemany(sql, values)
 
             inserted_count += 1
 

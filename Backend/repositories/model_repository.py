@@ -14,6 +14,18 @@ def insert_upload_file(upload_obj,org_id):
     upload_id = str(uuid.uuid4())
 
     try:
+        df = pd.DataFrame([{
+            "_id": upload_id,
+            "file_name": upload_obj.file_name,
+            "file_path": upload_obj.file_path,
+            "total_records": upload_obj.total_records,
+            "invalid_rows_count": upload_obj.invalid_rows_count,
+            "invalid_rows": json.dumps(upload_obj.invalid_rows),
+            "org_id": org_id,
+            "created_date": datetime.now(),
+            "file_type": upload_obj.file_type
+        }])
+
 
         sql = """
             INSERT INTO uploaded_files (
@@ -23,20 +35,8 @@ def insert_upload_file(upload_obj,org_id):
             )
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """
-
-        values = (
-            upload_id,
-            upload_obj.file_name,
-            upload_obj.file_path,
-            upload_obj.total_records,
-            upload_obj.invalid_rows_count,
-            json.dumps(upload_obj.invalid_rows),
-            org_id,
-            datetime.now(),
-            upload_obj.file_type
-        )
-
-        db.execute(sql, values)
+        values = df.values.tolist()
+        db.executemany(sql, values)
 
         conn.commit()
 
