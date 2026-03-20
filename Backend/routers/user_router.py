@@ -1,12 +1,11 @@
 from fastapi import APIRouter,Depends
 from schemas.Request.user_schema import LoginRequest
-from schemas.Response.common_response import APIResponse
 from services.user_service import UserService
 from core.security import verify_token
 
 userRouter = APIRouter(prefix="/users",tags=["Users"])
 
-@userRouter.post("/login",response_model=APIResponse)
+@userRouter.post("/login")
 def login(request:LoginRequest):
     message = ""
     code = 500

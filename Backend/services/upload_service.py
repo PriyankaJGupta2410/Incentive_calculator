@@ -1,11 +1,13 @@
 import pandas as pd
 from fastapi import UploadFile
-from repositories.upload_respository import insert_sales_records,insert_incentive_records,get_uploaded_files,get_uploaded_file_details
+from repositories.upload_respository import insert_sales_records,insert_incentive_records,get_uploaded_files,get_uploaded_file_details,get_sales_list,get_incentive_list
 from repositories.model_repository import insert_upload_file,get_user_details
 from utils.file_handler import save_temp_file
 from models.sales_model import Sales
 from models.incentive_model import Incentive
 from models.upload_model import upload
+from typing import List
+import os
 
 ############################## UPLOAD SERVICE #########################################
 
@@ -339,6 +341,151 @@ async def get_uploaded_file_details_service(
     except Exception as ex:
         message = f"Error fetching uploaded files: {str(ex)}"
 
+    return {
+        "message": message,
+        "code": code,
+        "status": status,
+        "res_data": res_data
+    }
+
+async def download_file_service(upload_id:str,current_user_id:str):
+    message = ""
+    code = 500
+    status = "fail"
+    res_data = {}
+    try:
+        user_details = get_user_details(current_user_id)
+        if not user_details:
+            message = "User not found"
+            code = 404
+            return {
+                "message":message,
+                "code": code,
+                "status": status,
+                "res_data": res_data
+            }
+        org_id = user_details.get("org_id")
+        file_details = get_uploaded_file_details(upload_id, org_id)
+        if not file_details:
+            message = "File not found"
+            code = 404
+            return {
+                "message":message,
+                "code": code,
+                "status": status,
+                "res_data": res_data
+            }
+        file_info = file_details.get("file_details", {})
+
+        file_path = file_info.get("file_path")
+        file_name = file_info.get("file_name")
+        if not os.path.exists(file_path):
+            message = "File not found on server"
+            code = 404
+            return {
+                "message":message,
+                "code": code,
+                "status": status,
+                "res_data": res_data
+            }
+        message = "File ready for download"
+        code = 200
+        status = "success"
+        res_data = {
+            "file_path": file_path,
+            "file_name": file_name
+        }
+        print("res_data in service:", res_data)
+    except Exception as ex:
+        message = f"Error downloading file: {str(ex)}"
+    return {
+        "message": message,
+        "code": code,
+        "status": status,
+        "res_data": res_data
+    }
+
+async def fetch_sales_list_service(current_user_id: str):
+    message = ""
+    code = 500
+    status = "fail"
+    res_data = {}
+    try:
+        user_details = get_user_details(current_user_id)
+        if not user_details:
+            message = "User not found"
+            code = 404
+            return {
+                "message": message,
+                "code": code,
+                "status": status,
+                "res_data": res_data
+            }
+        org_id = user_details.get("org_id")
+
+        result = get_sales_list(org_id)
+
+        if not result:
+            message = "No sales files found for the organization"
+            code = 404
+            status = "fail"
+            return {
+                "message": message,
+                "code": code,
+                "status": status,
+                "res_data": res_data
+            }
+        message = "Sales files fetched successfully"
+        code = 200
+        status = "success"
+        res_data = {"sales_files": result}
+
+
+    except Exception as e:
+        # You can add logging here
+        message = f"Error fetching sales files: {str(e)}"
+    return {
+        "message": message,
+        "code": code,
+        "status": status,
+        "res_data": res_data
+    }
+
+async def fetch_incentive_list_service(current_user_id: str):
+    message = ""
+    code = 500
+    status = "fail"
+    res_data = {}
+    try:
+        user_details = get_user_details(current_user_id)
+        if not user_details:
+            message = "User not found"
+            code = 404
+            return {
+                "message": message,
+                "code": code,
+                "status": status,
+                "res_data": res_data
+            }
+        org_id = user_details.get("org_id")
+        result = get_incentive_list(org_id)
+        if not result:
+            message = "No incentive files found for the organization"
+            code = 404
+            status = "fail"
+            return {
+                "message": message,
+                "code": code,
+                "status": status,
+                "res_data": res_data
+            }
+        message = "Incentive files fetched successfully"
+        code = 200
+        status = "success"
+        res_data = {"incentive_files": result}
+        
+    except Exception as ex:
+        message = f"Error fetching incentive files: {str(ex)}"
     return {
         "message": message,
         "code": code,

@@ -199,3 +199,49 @@ def get_uploaded_file_details(upload_id: str, org_id: str, limit: int = 100, off
     finally:
         cursor.close()
         conn.close()
+
+def get_sales_list(org_id:str):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        sql = """
+            SELECT * from uploaded_files
+            WHERE file_type = 'sales' AND org_id = %s"""
+        cursor.execute(sql,(org_id,))
+
+        result = cursor.fetchall()
+        df = pd.DataFrame(result)
+        if not df.empty:
+            result = df.to_dict(orient="records")
+            return result
+        return []
+    except Exception as ex:
+        conn.rollback()
+        raise ex
+    finally:
+        cursor.close()
+        conn.close()
+
+def get_incentive_list(org_id:str):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        sql = """
+            SELECT * from uploaded_files
+            WHERE file_type = 'incentive' AND org_id = %s"""
+        cursor.execute(sql,(org_id,))
+
+        result = cursor.fetchall()
+        df = pd.DataFrame(result)
+        if not df.empty:
+            result = df.to_dict(orient="records")
+            return result
+        return []
+    except Exception as ex:
+        conn.rollback()
+        raise ex
+    finally:
+        cursor.close()
+        conn.close()
