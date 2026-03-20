@@ -9,7 +9,7 @@ load_dotenv()
 
 JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_DAYS = 365  # token valid for 365 days
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
@@ -21,7 +21,7 @@ def verify_password(plain_password: str, hashed_password: str):
 
 def create_access_token(data:dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.utcnow() + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp":expire})
 
     token = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=ALGORITHM)

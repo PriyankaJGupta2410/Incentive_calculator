@@ -15,14 +15,15 @@ upload_router = APIRouter(prefix="/upload", tags=["upload"])
 async def upload_sales_data(
     request: Request,
     file: UploadFile = File(...),
-    x_access_token: str = Header(None),
-    current_user_id: str = None
+    x_access_token: str = Header(None)
 ):
     message = ""
     code = 500
     status = "fail"
     res_data = {}
     try:
+        current_user_id = request.state.current_user_id
+
         if not (file.filename.endswith(".csv") or file.filename.endswith(".xlsx")):
             message = "Invalid file type. Only CSV or Excel allowed."
             code = 400
@@ -51,14 +52,15 @@ async def upload_sales_data(
 async def upload_incentive(
     request: Request,
     file: UploadFile = File(...),
-    x_access_token: str = Header(None),
-    current_user_id: str = None
+    x_access_token: str = Header(None)
 ):
     message = ""
     code = 500
     status = "fail"
     res_data = {}
     try:
+        current_user_id = request.state.current_user_id
+
         if not (file.filename.endswith(".csv") or file.filename.endswith(".xlsx")):
             message = "Invalid file type. Only CSV or Excel allowed."
             code = 400
@@ -85,14 +87,15 @@ async def upload_incentive(
 @authentication
 async def GETuploadedFiles(
     request:Request,
-    x_access_token:str = Header(None),
-    current_user_id:str=None
+    x_access_token:str = Header(None)
 ):
     message = ""
     code = 500
     status = "fail"
     res_data = {}
     try:
+        current_user_id = request.state.current_user_id
+
         result = await get_uploaded_files_service(current_user_id)
         message = "Uploaded files retrieved successfully"
         code = 200
@@ -117,14 +120,15 @@ async def GETuploadedFileDetails(
     upload_id: str,
     limit: int = 100,
     offset: int = 0,
-    x_access_token: str = Header(None),
-    current_user_id: str = None
+    x_access_token: str = Header(None)
 ):
     message = ""
     code = 500
     status = "fail"
     res_data = {}
     try:
+        current_user_id = request.state.current_user_id
+
         result = await get_uploaded_file_details_service(
             upload_id, current_user_id, limit, offset
         )
@@ -144,14 +148,15 @@ async def GETuploadedFileDetails(
 async def download_file(
     request: Request,
     upload_id: str,
-    x_access_token: str = Header(None),
-    current_user_id: str = None
+    x_access_token: str = Header(None)
 ):
     message = ""
     code = 500
     status = "fail"
     res_data = {}
     try:
+        current_user_id = request.state.current_user_id
+
         file_service_response = await download_file_service(upload_id, current_user_id)
         if file_service_response["status"] == "success":
             file_path = file_service_response["res_data"]["file_path"]
@@ -175,14 +180,15 @@ async def download_file(
 @authentication
 async def GETsalesList(
     request: Request,
-    x_access_token: str = Header(None),
-    current_user_id: str = None,
+    x_access_token: str = Header(None)
 ):
     message = ""
     code = 500
     status = "fail"
     res_data = {}
     try:
+        current_user_id = request.state.current_user_id
+
         result = await fetch_sales_list_service(current_user_id)
         message = "Sales records retrieved successfully"
         code = 200
@@ -204,14 +210,15 @@ async def GETsalesList(
 @authentication
 async def GETincentiveList(
     request: Request,
-    x_access_token: str = Header(None),
-    current_user_id: str = None
+    x_access_token: str = Header(None)
 ):
     message = ""
     code = 500
     status = "fail"
     res_data = {}
     try:
+        current_user_id = request.state.current_user_id
+        
         result = await fetch_incentive_list_service(current_user_id)
         message = "Incentive records retrieved successfully"
         code = 200

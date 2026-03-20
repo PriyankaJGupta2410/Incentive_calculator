@@ -1,14 +1,15 @@
 from functools import wraps
 import jwt
 import os
-
+from fastapi import Request
 
 def authentication(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
         try:
+            request: Request = kwargs.get("request")
 
-            token = kwargs.get("x_access_token")
+            token = request.headers.get("x-access-token")
 
             if not token:
                 return {
@@ -24,7 +25,8 @@ def authentication(func):
                 algorithms=["HS256"]
             )
 
-            kwargs["current_user_id"] = str(decoded_token["user_id"])
+            # ✅ Store in request.state
+            request.state.current_user_id = str(decoded_token["user_id"])
 
             return await func(*args, **kwargs)
 
