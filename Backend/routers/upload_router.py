@@ -118,8 +118,6 @@ async def GETuploadedFiles(
 async def GETuploadedFileDetails(
     request: Request,
     upload_id: str,
-    limit: int = 100,
-    offset: int = 0,
     x_access_token: str = Header(None)
 ):
     message = ""
@@ -130,7 +128,7 @@ async def GETuploadedFileDetails(
         current_user_id = request.state.current_user_id
 
         result = await get_uploaded_file_details_service(
-            upload_id, current_user_id, limit, offset
+            upload_id, current_user_id
         )
         return result
 
@@ -218,7 +216,7 @@ async def GETincentiveList(
     res_data = {}
     try:
         current_user_id = request.state.current_user_id
-        
+
         result = await fetch_incentive_list_service(current_user_id)
         message = "Incentive records retrieved successfully"
         code = 200

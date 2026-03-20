@@ -297,9 +297,7 @@ async def get_uploaded_files_service(current_user_id: str):
 
 async def get_uploaded_file_details_service(
     upload_id: str,
-    current_user_id: str,
-    limit: int = 100,
-    offset: int = 0
+    current_user_id: str
 ):
     message = ""
     code = 500
@@ -321,7 +319,7 @@ async def get_uploaded_file_details_service(
 
         org_id = user_details.get("org_id")
 
-        file_details = get_uploaded_file_details(upload_id, org_id, limit, offset)
+        file_details = get_uploaded_file_details(upload_id, org_id)
 
         if not file_details:
             message = "File not found"
