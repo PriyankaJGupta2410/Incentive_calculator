@@ -4,6 +4,7 @@ import "./Uploadedfilespage.css";
 import Sidebar from "../../components/sidebar/sidebar";
 import { fetchUploadedFiles } from "../../services/fetchUploadfileService";
 import { fetchPreviewFile } from "../../services/previewfileService";
+import { downloadFile } from "../../services/downloadFileService";
 
 /* ══════════════════════════════════════
    HELPERS
@@ -89,7 +90,7 @@ function SkeletonGrid() {
 }
 
 /* ══════════════════════════════════════
-   CELL RENDERER — handles both file types
+   CELL RENDERER
 ══════════════════════════════════════ */
 function renderCell(col, row) {
   const val = row[col.key];
@@ -362,6 +363,9 @@ export default function UploadedFilesPage() {
   const [currentPage, setCurrentPage]       = useState(1);
   const [totalPages, setTotalPages]         = useState(1);
 
+  // ── Download state ──
+  const [downloadingId, setDownloadingId] = useState(null);
+
   const navigate = useNavigate();
 
   useEffect(() => { loadFiles(); }, []);
@@ -377,7 +381,7 @@ export default function UploadedFilesPage() {
         id:         file._id,
         name:       file.file_name,
         type:       file.file_name.split(".").pop(),
-        fileType:   file.file_type || "sales",   // "sales" | "incentive"
+        fileType:   file.file_type || "sales",
         size:       0,
         uploadedOn: new Date(file.created_date).toLocaleString(),
         uploadedBy: "Admin",
@@ -417,7 +421,7 @@ export default function UploadedFilesPage() {
     }
   };
 
-  /* ── Open modal ── */
+  /* ── Open preview modal ── */
   const loadPreview = (file) => {
     setPreviewFile(file);
     setPreviewData([]);
@@ -441,6 +445,28 @@ export default function UploadedFilesPage() {
     setPreviewError(null);
     setCurrentPage(1);
     setTotalPages(1);
+  };
+
+  /* ── Download handler ── */
+  const handleDownload = async (file) => {
+    if (downloadingId) return;
+    setDownloadingId(file.id);
+    try {
+      const blob     = await downloadFile(file.id);
+      const filename = file.name || "download.csv";
+      const url      = window.URL.createObjectURL(new Blob([blob]));
+      const link     = document.createElement("a");
+      link.href      = url;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download failed:", err);
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   /* ── Derive columns from open file's fileType ── */
@@ -657,7 +683,10 @@ export default function UploadedFilesPage() {
                     </div>
                   </div>
 
+                  {/* ── Action buttons ── */}
                   <div className="uf-file-card-actions">
+
+                    {/* Preview */}
                     <button
                       className="uf-action-btn"
                       onClick={() => loadPreview(file)}
@@ -668,16 +697,32 @@ export default function UploadedFilesPage() {
                       </svg>
                       Preview
                     </button>
-                    <button className="uf-action-btn">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="7 10 12 15 17 10"/>
-                        <line x1="12" y1="15" x2="12" y2="3"/>
-                      </svg>
-                      Download
-                    </button>
-                  </div>
 
+                    {/* Download */}
+                    <button
+                      className={`uf-action-btn ${downloadingId === file.id ? "uf-action-btn-loading" : ""}`}
+                      onClick={() => handleDownload(file)}
+                      disabled={downloadingId === file.id}
+                      title={`Download ${file.name}`}
+                    >
+                      {downloadingId === file.id ? (
+                        <>
+                          <span className="uf-btn-spinner" />
+                          Downloading…
+                        </>
+                      ) : (
+                        <>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                          </svg>
+                          Download
+                        </>
+                      )}
+                    </button>
+
+                  </div>
                 </div>
               </div>
             ))}

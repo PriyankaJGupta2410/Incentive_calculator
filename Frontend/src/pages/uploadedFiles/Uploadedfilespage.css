@@ -411,16 +411,9 @@
   word-break: break-word;
 }
 
-/* Data type label in card details */
-.uf-datatype-val { font-weight: 700 !important; }
-
-.uf-datatype-sales {
-  color: #1d4ed8 !important;
-}
-
-.uf-datatype-incentive {
-  color: #92400e !important;
-}
+.uf-datatype-val      { font-weight: 700 !important; }
+.uf-datatype-sales    { color: #1d4ed8 !important; }
+.uf-datatype-incentive { color: #92400e !important; }
 
 .uf-file-card-actions { display: flex; gap: 7px; }
 
@@ -452,6 +445,24 @@
   border-color: #fecaca;
   background: #fff1f2;
   color: var(--red-500);
+}
+
+/* ── Download loading state ── */
+.uf-action-btn-loading {
+  opacity: 0.7;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.uf-btn-spinner {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border: 2px solid var(--blue-200);
+  border-top-color: var(--blue-600);
+  border-radius: 50%;
+  animation: ufSpin 0.65s linear infinite;
+  flex-shrink: 0;
 }
 
 /* ══════════════════════════════════════
@@ -580,24 +591,20 @@
   animation: ufModalIn 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* Wider modal for incentive (10 columns) */
-.uf-modal-wide {
-  max-width: 1100px;
-}
+.uf-modal-wide { max-width: 1100px; }
 
 @keyframes ufModalIn {
   from { opacity: 0; transform: translateY(20px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0)    scale(1);    }
 }
 
-/* Accent bar */
 .uf-modal-accent {
   height: 4px;
   flex-shrink: 0;
   transition: background 0.3s;
 }
 
-/* ── Header ── */
+/* ── Modal Header ── */
 .uf-modal-header {
   display: flex;
   align-items: center;
@@ -634,7 +641,6 @@
   letter-spacing: -0.2px;
 }
 
-/* Chips row */
 .uf-modal-chips {
   display: flex;
   align-items: center;
@@ -673,7 +679,6 @@
   flex-shrink: 0;
 }
 
-/* File type chip variants */
 .uf-chip-filetype-sales {
   background: #dbeafe;
   border-color: #bfdbfe;
@@ -686,7 +691,6 @@
   color: #92400e;
 }
 
-/* Close button */
 .uf-modal-close {
   background: none;
   border: 1.5px solid var(--blue-100);
@@ -726,7 +730,6 @@
   font-family: var(--font);
 }
 
-/* Nav */
 .uf-modal-nav {
   display: flex;
   align-items: center;
@@ -774,7 +777,7 @@
   padding: 0 4px;
 }
 
-/* ── Body ── */
+/* ── Modal Body ── */
 .uf-modal-body {
   flex: 1;
   overflow: auto;
@@ -829,7 +832,7 @@
 
 @keyframes ufSpin { to { transform: rotate(360deg); } }
 
-/* ── Table ── */
+/* ── Preview Table ── */
 .uf-modal-table-wrap {
   overflow-x: auto;
   padding: 0;
@@ -970,7 +973,7 @@
   white-space: nowrap;
 }
 
-/* ── Footer ── */
+/* ── Modal Footer ── */
 .uf-modal-footer {
   display: flex;
   align-items: center;
@@ -994,7 +997,6 @@
   font-family: var(--font);
 }
 
-/* Dot pagination */
 .uf-dot-pagination {
   display: flex;
   align-items: center;
