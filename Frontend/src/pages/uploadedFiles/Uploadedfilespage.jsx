@@ -55,6 +55,15 @@ const PREVIEW_COLUMNS_MAP = {
     { key: "valid_to",             label: "Valid To"       },
     { key: "rule_type",            label: "Rule Type"      },
   ],
+  ad_hoc_rule : [
+    { key: "scheme_id",            label: "Scheme ID"      },
+    { key: "scheme_name",          label: "Scheme Name"    },
+    { key: "conditions",           label: "Conditions"     },
+    { key: "role",                 label: "Role"           },
+    { key: "bonus_amount",         label: "Bonus Amount"   },
+    { key: "validity_from",        label: "Validity From"  },
+    { key: "validity_to",          label: "Validity To"    },
+  ]
 };
 
 const PAGE_SIZE = 5;
@@ -678,9 +687,16 @@ export default function UploadedFilesPage() {
                     <div className="uf-detail-row">
                       <span className="uf-detail-key">Data Type</span>
                       <span className={`uf-detail-val uf-datatype-val uf-datatype-${file.fileType}`}>
-                        {file.fileType === "incentive" ? "Incentive" : "Sales"}
+                        {file.fileType === "incentive"
+                          ? "Incentive"
+                          : file.fileType === "sales"
+                          ? "Sales"
+                          : file.fileType === "ad_hoc_rule"
+                          ? "Ad-Hoc Rule"
+                          : "Unknown"}
                       </span>
                     </div>
+
                   </div>
 
                   {/* ── Action buttons ── */}

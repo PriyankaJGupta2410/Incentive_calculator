@@ -272,6 +272,14 @@ def get_uploaded_file_details(upload_id: str, org_id: str, limit: int = 100, off
                 WHERE upload_id = %s AND org_id = %s
                 LIMIT %s OFFSET %s
             """
+        elif file_type == "ad_hoc_rule":
+            sql = """
+                SELECT * 
+                FROM ad_hoc_rules
+                WHERE upload_id = %s AND org_id = %s
+                ORDER BY scheme_id
+                LIMIT %s OFFSET %s
+            """
         else:
             return {
                 "file_details": file_details,
