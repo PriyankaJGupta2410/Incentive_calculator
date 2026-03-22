@@ -1,6 +1,6 @@
 import pandas as pd
 from fastapi import UploadFile
-from repositories.upload_respository import insert_sales_records,insert_incentive_records,get_uploaded_files,get_uploaded_file_details,get_sales_list,get_incentive_list,insert_ad_hoc_data
+from repositories.upload_respository import insert_sales_records,insert_incentive_records,get_uploaded_files,get_uploaded_file_details,get_sales_list,get_incentive_list,insert_ad_hoc_data,get_adhoc_list
 from repositories.model_repository import insert_upload_file,get_user_details
 from utils.file_handler import save_temp_file
 from utils.parser import extract_with_pandas
@@ -607,6 +607,47 @@ async def fetch_incentive_list_service(current_user_id: str):
         
     except Exception as ex:
         message = f"Error fetching incentive files: {str(ex)}"
+    return {
+        "message": message,
+        "code": code,
+        "status": status,
+        "res_data": res_data
+    }
+
+async def fetch_adhoc_list_service(current_user_id:str):
+    message = ""
+    code = 500
+    status = "fail"
+    res_data = {}
+    try:
+        user_details = get_user_details(current_user_id)
+        if not user_details:
+            message = "User not found"
+            code = 404
+            return {
+                "message" : message,
+                "code" : code,
+                "status" : status,
+                "res_data" : res_data
+            }
+        org_id = user_details.get("org_id")
+        result = get_adhoc_list(org_id)
+        if not result:
+            message = "No adhoc files found for the organization"
+            code = 404
+            return {
+                "message": message,
+                "code": code,
+                "status": status,
+                "res_data": res_data
+            }      
+        message = "Adhoc files fetched successfully"
+        code= 200
+        status = "success"
+        res_data = {"adhoc_files":result}      
+
+    except Exception as ex:
+        message = f"Error fetching adhoc files:{str(ex)}"
     return {
         "message": message,
         "code": code,

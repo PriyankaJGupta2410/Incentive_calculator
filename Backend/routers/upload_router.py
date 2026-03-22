@@ -1,5 +1,5 @@
 from fastapi import APIRouter, File, Request, UploadFile, HTTPException,Header
-from services.upload_service import process_sales_file,process_incentive_file,get_uploaded_files_service,get_uploaded_file_details_service,fetch_sales_list_service,download_file_service,fetch_incentive_list_service,process_ad_hoc_file
+from services.upload_service import process_sales_file,process_incentive_file,get_uploaded_files_service,get_uploaded_file_details_service,fetch_sales_list_service,download_file_service,fetch_incentive_list_service,process_ad_hoc_file,fetch_adhoc_list_service
 from core.decorators import authentication
 from fastapi.responses import FileResponse
 import os
@@ -254,3 +254,32 @@ async def GETincentiveList(
         "status": status,
         "res_data": res_data
     }
+
+@upload_router.get("/GETadhocList")
+@authentication
+async def GETadhocList(
+    request :  Request,
+    x_access_token : str =  Header(None)
+):
+    message = ""
+    code = 500
+    status = "fail"
+    res_data = {}
+    try:
+        current_user_id = request.state.current_user_id
+
+        result = await fetch_adhoc_list_service(current_user_id)
+        message = "Ad-hoc records retrieved successfully"
+        code = 200
+        status = "success"
+        res_data = {
+            "ad_hoc" : result
+        }
+    except Exception as ex:
+        message = f"Error GETsalesList: {str(ex)}"
+    return {
+        "message": message,
+        "code": code,
+        "status": status,
+        "res_data": res_data
+    }  
