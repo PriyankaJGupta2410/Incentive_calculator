@@ -102,7 +102,111 @@ def insert_incentive_records(records:list,upload_id:str,org_id:str):
     finally:
         conn.close()
     return inserted_count
-    
+
+def insert_ad_hoc_data(validated_rows, upload_id: str, org_id: str):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        # ==============================
+        # 🚀 STEP 1: Convert to DataFrame
+        # ==============================
+        df = pd.DataFrame(validated_rows)
+
+        print("DEBUG: Initial DataFrame")
+        print(df.head())
+
+        # ==============================
+        # 🚀 STEP 2: FORCE NaN → None
+        # ==============================
+        df = df.astype(object)  # 🔥 IMPORTANT
+        df = df.where(pd.notnull(df), None)
+
+        # 🔥 EXTRA SAFETY (MANDATORY)
+        df = df.replace({float("nan"): None})
+
+        print("DEBUG: After NaN handling")
+        print(df.head())
+
+        # ==============================
+        # 🚀 STEP 3: Fix Data Types
+        # ==============================
+
+        # ✅ bonus_amount → int
+        df["bonus_amount"] = df["bonus_amount"].apply(
+            lambda x: int(x) if x and str(x).isdigit() else x
+        )
+
+        # ==============================
+        # 🚀 STEP 4: Add required columns
+        # ==============================
+        df["_id"] = [str(uuid.uuid4()) for _ in range(len(df))]
+        df["upload_id"] = upload_id
+        df["created_date"] = datetime.now()
+        df["org_id"] = org_id
+
+        print("DEBUG: After adding system columns")
+        print(df.head())
+
+        # ==============================
+        # 🚀 STEP 5: Select correct columns
+        # ==============================
+        df = df[[
+            "_id",
+            "scheme_id",
+            "scheme_name",
+            "conditions",
+            "role",
+            "bonus_amount",
+            "validity_from",
+            "validity_to",
+            "notes",
+            "upload_id",
+            "created_date",
+            "org_id"
+        ]]
+
+        print("DEBUG: Final DataFrame before insert")
+        print(df.head())
+
+        # ==============================
+        # 🚀 STEP 6: Convert safely to tuples
+        # ==============================
+        data = []
+
+        for row in df.itertuples(index=False, name=None):
+            clean_row = tuple(None if (isinstance(v, float) and pd.isna(v)) else v for v in row)
+            data.append(clean_row)
+
+        print("DEBUG: Sample row to insert")
+        print(data[0] if data else "No data")
+
+        # ==============================
+        # 🚀 STEP 7: Insert into DB
+        # ==============================
+        query = """
+        INSERT INTO ad_hoc_rules (
+            _id, scheme_id, scheme_name, conditions, role, bonus_amount,
+            validity_from, validity_to, notes, upload_id, created_date, org_id
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        """
+
+        cursor.executemany(query, data)
+        conn.commit()
+
+        print(f"DEBUG: Inserted {len(data)} rows successfully")
+
+    except Exception as e:
+        conn.rollback()
+        print("ERROR during insert:", str(e))
+        raise e
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def get_uploaded_files(org_id: str):
     conn = get_connection()
     cursor = conn.cursor()

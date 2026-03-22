@@ -1,7 +1,5 @@
 from fastapi import APIRouter, File, Request, UploadFile, HTTPException,Header
-from services.upload_service import process_sales_file,process_incentive_file,get_uploaded_files_service,get_uploaded_file_details_service,fetch_sales_list_service,download_file_service,fetch_incentive_list_service
-from repositories.upload_respository import get_uploaded_file_details
-from repositories.model_repository import get_user_details
+from services.upload_service import process_sales_file,process_incentive_file,get_uploaded_files_service,get_uploaded_file_details_service,fetch_sales_list_service,download_file_service,fetch_incentive_list_service,process_ad_hoc_file
 from core.decorators import authentication
 from fastapi.responses import FileResponse
 import os
@@ -83,6 +81,29 @@ async def upload_incentive(
         "res_data": res_data
     }
 
+@upload_router.post("/upload_ad_hoc_rule")
+@authentication
+async def upload_ad_hoc_rule(
+    request: Request,
+    file: UploadFile = File(...),
+    x_access_token: str = Header(None)
+):
+    try:
+        current_user_id = request.state.current_user_id
+
+        response = await process_ad_hoc_file(file, current_user_id)
+
+        # ✅ If service already returns formatted response → return directly
+        return response
+
+    except Exception as e:
+        return {
+            "message": str(e),
+            "status": "fail",
+            "code": 500,
+            "res_data": {}
+        }
+    
 @upload_router.get("/GETuploadedFiles")
 @authentication
 async def GETuploadedFiles(

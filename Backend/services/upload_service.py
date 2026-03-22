@@ -1,8 +1,9 @@
 import pandas as pd
 from fastapi import UploadFile
-from repositories.upload_respository import insert_sales_records,insert_incentive_records,get_uploaded_files,get_uploaded_file_details,get_sales_list,get_incentive_list
+from repositories.upload_respository import insert_sales_records,insert_incentive_records,get_uploaded_files,get_uploaded_file_details,get_sales_list,get_incentive_list,insert_ad_hoc_data
 from repositories.model_repository import insert_upload_file,get_user_details
 from utils.file_handler import save_temp_file
+from utils.parser import extract_with_pandas
 from models.sales_model import Sales
 from models.incentive_model import Incentive
 from models.upload_model import upload
@@ -253,6 +254,128 @@ async def process_incentive_file(file: UploadFile, current_user_id: str):
         }
     }
 
+async def process_ad_hoc_file(file: UploadFile, current_user_id: str):
+
+    try:
+        # ---------- Validate ----------
+        if not file.filename.endswith(".txt"):
+            return {
+                "message": "Only TXT files allowed",
+                "status": "fail",
+                "code": 400,
+                "res_data": {}
+            }
+
+        # ---------- Read file ----------
+        content = await file.read()
+
+        if not content:
+            return {
+                "message": "File is empty",
+                "status": "fail",
+                "code": 400,
+                "res_data": {}
+            }
+
+        text = content.decode("utf-8")
+
+        if not text.strip():
+            return {
+                "message": "TXT file is empty",
+                "status": "fail",
+                "code": 400,
+                "res_data": {}
+            }
+
+        # ---------- Save file ----------
+        file_path = save_temp_file(file)
+        with open(file_path, "wb") as f:
+            f.write(content)
+
+        # ---------- User ----------
+        user_details = get_user_details(current_user_id)
+        org_id = user_details.get("org_id")
+
+        # =========================================================
+        # 🚀 PARSE USING PANDAS
+        # =========================================================
+        df, invalid_rows = extract_with_pandas(text)
+
+        if df.empty:
+            return {
+                "message": "No valid schemes found",
+                "status": "fail",
+                "code": 400,
+                "res_data": {}
+            }
+
+        # =========================================================
+        # 🚀 FIX NaN → None (CRITICAL FOR MYSQL)
+        # =========================================================
+        df = df.astype(object).where(pd.notnull(df), None)
+
+        validated_rows = df.to_dict(orient="records")
+
+        # 🔥 FINAL SAFETY CLEAN (DICT LEVEL)
+        cleaned_rows = []
+        for row in validated_rows:
+            clean_row = {}
+            for k, v in row.items():
+                if pd.isna(v):
+                    clean_row[k] = None
+                else:
+                    clean_row[k] = v
+            cleaned_rows.append(clean_row)
+
+        validated_rows = cleaned_rows
+
+        total_records = len(validated_rows)
+        invalid_rows_count = len(invalid_rows)
+
+        # =========================================================
+        # 🚀 INSERT UPLOAD METADATA
+        # =========================================================
+        upload_obj = upload(
+            file_name=file.filename,
+            file_path=file_path,
+            total_records=total_records,
+            invalid_rows_count=invalid_rows_count,
+            invalid_rows=invalid_rows,
+            file_type="ad_hoc_rule"
+        )
+
+        upload_id = insert_upload_file(upload_obj, org_id)
+
+        # =========================================================
+        # 🚀 INSERT RULES
+        # =========================================================
+        insert_ad_hoc_data(
+            validated_rows=validated_rows,
+            upload_id=upload_id,
+            org_id=org_id
+        )
+
+        # =========================================================
+        # 🚀 RESPONSE
+        # =========================================================
+        return {
+            "message": "File processed successfully",
+            "status": "success",
+            "code": 200,
+            "res_data": {
+                "upload_id": upload_id,
+                "total_records": total_records,
+                "invalid_rows": invalid_rows
+            }
+        }
+
+    except Exception as e:
+        return {
+            "message": str(e),
+            "status": "fail",
+            "code": 500,
+            "res_data": {}
+        }
 
 async def get_uploaded_files_service(current_user_id: str):
 
