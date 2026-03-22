@@ -4,6 +4,7 @@ import Sidebar from "../../components/sidebar/sidebar";
 import { uploadSales } from "../../services/uploadsalesService";
 import { useNavigate } from "react-router-dom";
 import { uploadIncentiveRules } from "../../services/incentiverulesService";
+import { uploadAdhoc } from "../../services/uploadadhocService";
 
 /* ══════════════════════════════════════
    CONSTANTS
@@ -382,11 +383,13 @@ export default function Upload_data() {
     try {
       setUnstructLoading(true);
       setUnstructMsg("");
+      const res = await uploadAdhoc(fd);
       /* TODO: replace with actual unstructured upload service call */
-      await new Promise(r => setTimeout(r, 1000));
-      setUnstructMsg("Unstructured data uploaded and stored successfully.");
-      setUnstructStatus("success");
-      setUploadedCount(c => c + 1);
+      if (res.status === "success"){
+        setUnstructMsg(res.message || "Unstructured data uploaded and stored successfully.");
+        setUnstructStatus("success");
+        setUploadedCount(c => c + 1);
+      }
     } catch (e) {
       setUnstructMsg(e.message);
       setUnstructStatus("error");
