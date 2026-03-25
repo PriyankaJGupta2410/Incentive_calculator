@@ -126,9 +126,6 @@ def insert_ad_hoc_data(validated_rows, upload_id: str, org_id: str):
         # 🔥 EXTRA SAFETY (MANDATORY)
         df = df.replace({float("nan"): None})
 
-        print("DEBUG: After NaN handling")
-        print(df.head())
-
         # ==============================
         # 🚀 STEP 3: Fix Data Types
         # ==============================
@@ -146,8 +143,6 @@ def insert_ad_hoc_data(validated_rows, upload_id: str, org_id: str):
         df["created_date"] = datetime.now()
         df["org_id"] = org_id
 
-        print("DEBUG: After adding system columns")
-        print(df.head())
 
         # ==============================
         # 🚀 STEP 5: Select correct columns
@@ -167,8 +162,6 @@ def insert_ad_hoc_data(validated_rows, upload_id: str, org_id: str):
             "org_id"
         ]]
 
-        print("DEBUG: Final DataFrame before insert")
-        print(df.head())
 
         # ==============================
         # 🚀 STEP 6: Convert safely to tuples
@@ -179,8 +172,6 @@ def insert_ad_hoc_data(validated_rows, upload_id: str, org_id: str):
             clean_row = tuple(None if (isinstance(v, float) and pd.isna(v)) else v for v in row)
             data.append(clean_row)
 
-        print("DEBUG: Sample row to insert")
-        print(data[0] if data else "No data")
 
         # ==============================
         # 🚀 STEP 7: Insert into DB
@@ -194,8 +185,6 @@ def insert_ad_hoc_data(validated_rows, upload_id: str, org_id: str):
 
         cursor.executemany(query, data)
         conn.commit()
-
-        print(f"DEBUG: Inserted {len(data)} rows successfully")
 
     except Exception as e:
         conn.rollback()

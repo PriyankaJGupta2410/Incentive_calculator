@@ -73,3 +73,45 @@ CREATE TABLE incentives (
     
     FOREIGN KEY (upload_id) REFERENCES uploaded_files(id)
 );
+
+CREATE TABLE ad_hoc_rules (
+    _id CHAR(36) PRIMARY KEY,
+    scheme_id INT NOT NULL,
+    scheme_name VARCHAR(255) NOT NULL,
+    conditions TEXT NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    bonus_amount VARCHAR(50),
+    validity_from DATE NOT NULL,
+    validity_to DATE NOT NULL,
+    notes TEXT,
+    upload_id CHAR(36) NOT NULL,
+    org_id char(36) NOT NULL,
+    created_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE incentive_calculations (
+    _id VARCHAR(36) PRIMARY KEY,
+
+    employee_id VARCHAR(50) NOT NULL,
+    org_id VARCHAR(36) NOT NULL,
+
+    sales_upload_id VARCHAR(36) NOT NULL,
+    structured_upload_id VARCHAR(36) NOT NULL,
+    adhoc_upload_id VARCHAR(36) NOT NULL,
+
+    total_incentive DECIMAL(12,2) DEFAULT 0,
+    structured_incentive DECIMAL(12,2) DEFAULT 0,
+    ad_hoc_incentive DECIMAL(12,2) DEFAULT 0,
+
+    calculation_period VARCHAR(7) NOT NULL, -- YYYY-MM
+
+    details JSON, -- full breakdown (structured + adhoc)
+
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    -- 🔗 Foreign Keys
+    FOREIGN KEY (org_id) REFERENCES organization_master(_id) ON DELETE CASCADE,
+    FOREIGN KEY (sales_upload_id) REFERENCES uploaded_files(_id) ON DELETE CASCADE,
+    FOREIGN KEY (structured_upload_id) REFERENCES uploaded_files(_id) ON DELETE CASCADE,
+    FOREIGN KEY (adhoc_upload_id) REFERENCES uploaded_files(_id) ON DELETE CASCADE
+);
