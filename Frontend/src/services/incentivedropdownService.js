@@ -11,9 +11,14 @@ export const incentiveDropdown = async () => {
         },
       }
     );
-    return res.data;
+
+    // Extract required data
+    const incentiveFiles = res?.data?.res_data?.incentives?.res_data?.incentive_files || [];
+
+    return incentiveFiles;
+
   } catch (error) {
     console.error("Error fetching incentive dropdown:", error);
-    throw error; // ← rethrow so Promise.all catches it
+    throw error; // keep this for Promise.all handling
   }
 };

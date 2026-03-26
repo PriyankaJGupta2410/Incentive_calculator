@@ -26,7 +26,7 @@
   justify-content: space-between;
   padding: 24px 0 20px;
   border-bottom: 1px solid var(--blue-100);
-  margin-bottom: 32px;
+  margin-bottom: 20px;
 }
 
 .calc-topbar-left { display: flex; flex-direction: column; gap: 3px; }
@@ -63,6 +63,22 @@
   transition: all 0.15s;
 }
 .calc-upload-link:hover { background: var(--blue-50); border-color: var(--blue-400); transform: translateY(-1px); }
+
+/* ── Fetch error banner ── */
+.calc-fetch-error {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 16px;
+  background: #fff1f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #b91c1c;
+  margin-bottom: 20px;
+  animation: msgPop 0.2s ease both;
+}
 
 /* ── Main Body ── */
 .calc-body {
@@ -224,6 +240,7 @@
 .calc-select:focus.indigo-focus { border-color: var(--indigo-500); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
 .calc-select:focus.teal-focus   { border-color: #14b8a6; box-shadow: 0 0 0 3px rgba(20,184,166,0.1); }
 
+.calc-select:disabled { opacity: 0.55; cursor: not-allowed; }
 .calc-select option[value=""] { color: var(--gray-400); }
 
 /* Selected file preview chip */

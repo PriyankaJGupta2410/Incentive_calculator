@@ -2,26 +2,9 @@ import React, { useState, useEffect } from "react";
 import "./Incentivecalculator.css";
 import Sidebar from "../../components/sidebar/sidebar";
 import { useNavigate } from "react-router-dom";
-
-/* ══════════════════════════════════════
-   MOCK DATA — replace with API calls
-   GET /api/uploaded-files?type=sales   etc.
-══════════════════════════════════════ */
-const MOCK_FILES = {
-  sales: [
-    { id: 1, file_name: "sales_jan.csv",    upload_date: "2026-03-15", uploaded_by: "Admin" },
-    { id: 4, file_name: "sales_feb.csv",    upload_date: "2026-03-01", uploaded_by: "Admin" },
-    { id: 7, file_name: "sales_mar.csv",    upload_date: "2026-03-10", uploaded_by: "Admin" },
-  ],
-  incentive: [
-    { id: 2, file_name: "incentive_jan.csv", upload_date: "2026-03-15", uploaded_by: "Admin" },
-    { id: 5, file_name: "incentive_feb.csv", upload_date: "2026-03-01", uploaded_by: "Admin" },
-  ],
-  unstructured: [
-    { id: 3, file_name: "extra_data.csv",    upload_date: "2026-03-15", uploaded_by: "Admin" },
-    { id: 6, file_name: "adhoc_march.csv",   upload_date: "2026-03-08", uploaded_by: "Admin" },
-  ],
-};
+import {salesDropdown} from "../../services/salesdropdownService"
+import { incentiveDropdown } from "../../services/incentivedropdownService";
+import { adhocDropdown } from "../../services/adhocdropdownService";
 
 /* ── Calculation run steps shown in status panel ── */
 const RUN_STEPS = [
@@ -34,10 +17,28 @@ const RUN_STEPS = [
 
 /* ── Spinner icon ── */
 const SpinIcon = ({ size = 14 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "spin 1s linear infinite" }}>
+  <svg
+    width={size} height={size}
+    viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="2.5"
+    strokeLinecap="round" strokeLinejoin="round"
+    style={{ animation: "spin 1s linear infinite" }}
+  >
     <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
   </svg>
 );
+
+/* ── Normalise a file object from any of the three APIs ──
+   Each API returns slightly different shapes; this flattens
+   them into { id, file_name, upload_date, uploaded_by }     */
+function normaliseFile(f) {
+  return {
+    id:          f.id          ?? f._id         ?? f.upload_id ?? f.value ?? f,
+    file_name:   f.file_name   ?? f.name        ?? f.label     ?? String(f),
+    upload_date: f.upload_date ?? f.created_at  ?? f.date      ?? "",
+    uploaded_by: f.uploaded_by ?? f.uploaded_by ?? "—",
+  };
+}
 
 /* ══════════════════════════════════════
    MAIN COMPONENT
@@ -47,39 +48,59 @@ export default function IncentiveCalculator() {
   const [active, setActive]           = useState("Incentive Rules");
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  /* File lists from DB */
-  const [salesFiles, setSalesFiles]           = useState([]);
-  const [incentiveFiles, setIncentiveFiles]   = useState([]);
-  const [unstructFiles, setUnstructFiles]     = useState([]);
-  const [filesLoading, setFilesLoading]       = useState(true);
+  /* File lists from APIs */
+  const [salesFiles,     setSalesFiles]     = useState([]);
+  const [incentiveFiles, setIncentiveFiles] = useState([]);
+  const [adhocFiles,     setAdhocFiles]     = useState([]);
+  const [filesLoading,   setFilesLoading]   = useState(true);
+  const [fetchError,     setFetchError]     = useState("");
 
   /* Selected IDs */
   const [selectedSales,     setSelectedSales]     = useState("");
   const [selectedIncentive, setSelectedIncentive] = useState("");
-  const [selectedUnstruct,  setSelectedUnstruct]  = useState("");
+  const [selectedAdhoc,     setSelectedAdhoc]     = useState("");
 
   /* Calculation state */
-  const [calcStatus,   setCalcStatus]   = useState("idle"); // idle | running | success | error
-  const [runStepIdx,   setRunStepIdx]   = useState(-1);
-  const [calcResult,   setCalcResult]   = useState(null);
-  const [calcError,    setCalcError]    = useState("");
-  const [validErrors,  setValidErrors]  = useState([]);
+  const [calcStatus,  setCalcStatus]  = useState("idle"); // idle | running | success | error
+  const [runStepIdx,  setRunStepIdx]  = useState(-1);
+  const [calcResult,  setCalcResult]  = useState(null);
+  const [calcError,   setCalcError]   = useState("");
+  const [validErrors, setValidErrors] = useState([]);
 
-  /* ── Load file lists (simulate API) ── */
+  /* ── Load all three dropdowns in parallel ── */
   useEffect(() => {
-    setTimeout(() => {
-      setSalesFiles(MOCK_FILES.sales);
-      setIncentiveFiles(MOCK_FILES.incentive);
-      setUnstructFiles(MOCK_FILES.unstructured);
-      setFilesLoading(false);
-    }, 600);
+    const fetchAll = async () => {
+      setFilesLoading(true);
+      setFetchError("");
+      try {
+        const [salesRaw, incentiveRaw, adhocRaw] = await Promise.all([
+          salesDropdown(),
+          incentiveDropdown(),
+          adhocDropdown(),
+        ]);
+        setSalesFiles(salesRaw.map(normaliseFile));
+        setIncentiveFiles(incentiveRaw.map(normaliseFile));
+        setAdhocFiles(adhocRaw.map(normaliseFile));
+      } catch (err) {
+        console.error("Failed to load dropdown data:", err);
+        setFetchError("Failed to load file lists. Please refresh and try again.");
+      } finally {
+        setFilesLoading(false);
+      }
+    };
+    fetchAll();
   }, []);
 
   /* helpers */
-  function fileById(list, id) { return list.find(f => String(f.id) === String(id)); }
+  function fileById(list, id) {
+    return list.find(f => String(f.id) === String(id));
+  }
 
   function fmtDate(d) {
-    return new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    if (!d) return "—";
+    return new Date(d).toLocaleDateString("en-IN", {
+      day: "2-digit", month: "short", year: "numeric",
+    });
   }
 
   /* ── Validate and Run ── */
@@ -96,30 +117,41 @@ export default function IncentiveCalculator() {
     setRunStepIdx(0);
 
     try {
-      /* Simulate step-by-step progress */
+      /* Step-by-step progress animation */
       for (let i = 0; i < RUN_STEPS.length; i++) {
         setRunStepIdx(i);
         await new Promise(r => setTimeout(r, 700 + Math.random() * 400));
       }
 
-      /* TODO: replace with real API call
-         const response = await calculateIncentive({
-           sales_file_id:        Number(selectedSales),
-           incentive_file_id:    Number(selectedIncentive),
-           unstructured_file_id: selectedUnstruct ? Number(selectedUnstruct) : null,
-         });
-         if (!response.status) throw new Error(response.message);
-      */
+      /* ── Real API call — uncomment and wire your endpoint ──────────
+         import axios from "axios";
+         import BASE_URL from "../../config/apiConfig";
 
-      /* Mock result */
+         const payload = {
+           period:               "",                         // add period field if needed
+           sales_upload_id:      selectedSales,
+           structured_upload_id: selectedIncentive,
+           adhoc_upload_id:      selectedAdhoc || null,
+         };
+
+         const res = await axios.post(
+           `${BASE_URL}/incentive/calculate`,
+           payload,
+           { headers: { "x-access-token": localStorage.getItem("token") } }
+         );
+         if (!res.data.status) throw new Error(res.data.message);
+         const apiResult = res.data.res_data;
+      ─────────────────────────────────────────────────────────────── */
+
+      /* Mock result — remove once real API is wired */
       setCalcResult({
-        total_incentive:  "₹14,82,500",
+        total_incentive:   "₹14,82,500",
         records_processed: 108,
         exceptions:        6,
         duration_ms:       2340,
         sales_file:    fileById(salesFiles,     selectedSales)?.file_name,
         incentive_file: fileById(incentiveFiles, selectedIncentive)?.file_name,
-        unstruct_file:  selectedUnstruct ? fileById(unstructFiles, selectedUnstruct)?.file_name : null,
+        adhoc_file:    selectedAdhoc ? fileById(adhocFiles, selectedAdhoc)?.file_name : null,
       });
       setCalcStatus("success");
     } catch (err) {
@@ -128,7 +160,7 @@ export default function IncentiveCalculator() {
     }
   }
 
-  /* status dot class */
+  /* status dot / icon class helpers */
   function statusDotClass() {
     if (calcStatus === "running") return "dot-running";
     if (calcStatus === "success") return "dot-success";
@@ -143,6 +175,9 @@ export default function IncentiveCalculator() {
     return "status-icon-idle";
   }
 
+  /* ══════════════════════════════════════
+     RENDER
+  ══════════════════════════════════════ */
   return (
     <div className="calc-page">
 
@@ -172,6 +207,18 @@ export default function IncentiveCalculator() {
           </div>
         </header>
 
+        {/* Global fetch error banner */}
+        {fetchError && (
+          <div className="calc-fetch-error">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            {fetchError}
+          </div>
+        )}
+
         <div className="calc-body">
 
           {/* ══ LEFT: Selection Panel ══ */}
@@ -193,8 +240,10 @@ export default function IncentiveCalculator() {
                   <label className="calc-dd-label">
                     <div className="calc-dd-label-icon dd-icon-blue">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                       </svg>
                     </div>
                     Select Sales File
@@ -216,7 +265,7 @@ export default function IncentiveCalculator() {
                       <option value="">— Choose a sales file —</option>
                       {salesFiles.map(f => (
                         <option key={f.id} value={f.id}>
-                          {f.file_name} · {fmtDate(f.upload_date)}
+                          {f.file_name}{f.upload_date ? ` · ${fmtDate(f.upload_date)}` : ""}
                         </option>
                       ))}
                     </select>
@@ -230,7 +279,10 @@ export default function IncentiveCalculator() {
                       <div className="calc-chip-icon chip-icon-blue">CSV</div>
                       <div className="calc-chip-info">
                         <div className="calc-chip-name chip-name-blue">{f.file_name}</div>
-                        <div className="calc-chip-meta">Uploaded {fmtDate(f.upload_date)} · by {f.uploaded_by}</div>
+                        <div className="calc-chip-meta">
+                          {f.upload_date ? `Uploaded ${fmtDate(f.upload_date)} · ` : ""}
+                          {f.uploaded_by !== "—" ? `by ${f.uploaded_by}` : ""}
+                        </div>
                       </div>
                       <div className="calc-chip-check">
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -242,13 +294,15 @@ export default function IncentiveCalculator() {
                 })()}
 
                 <p className="calc-dd-help">
-                  {salesFiles.length > 0
-                    ? `${salesFiles.length} sales file${salesFiles.length !== 1 ? "s" : ""} available in the database`
-                    : "No sales files uploaded yet"}
+                  {filesLoading
+                    ? "Fetching sales files…"
+                    : salesFiles.length > 0
+                      ? `${salesFiles.length} sales file${salesFiles.length !== 1 ? "s" : ""} available`
+                      : "No sales files uploaded yet"}
                 </p>
               </div>
 
-              {/* ── Dropdown 2: Incentive Data ── */}
+              {/* ── Dropdown 2: Incentive (Structured) Data ── */}
               <div className="calc-dd-group" style={{ animationDelay: "70ms" }}>
                 <div className="calc-dd-label-row">
                   <label className="calc-dd-label">
@@ -277,7 +331,7 @@ export default function IncentiveCalculator() {
                       <option value="">— Choose an incentive file —</option>
                       {incentiveFiles.map(f => (
                         <option key={f.id} value={f.id}>
-                          {f.file_name} · {fmtDate(f.upload_date)}
+                          {f.file_name}{f.upload_date ? ` · ${fmtDate(f.upload_date)}` : ""}
                         </option>
                       ))}
                     </select>
@@ -291,7 +345,10 @@ export default function IncentiveCalculator() {
                       <div className="calc-chip-icon chip-icon-indigo">CSV</div>
                       <div className="calc-chip-info">
                         <div className="calc-chip-name chip-name-indigo">{f.file_name}</div>
-                        <div className="calc-chip-meta">Uploaded {fmtDate(f.upload_date)} · by {f.uploaded_by}</div>
+                        <div className="calc-chip-meta">
+                          {f.upload_date ? `Uploaded ${fmtDate(f.upload_date)} · ` : ""}
+                          {f.uploaded_by !== "—" ? `by ${f.uploaded_by}` : ""}
+                        </div>
                       </div>
                       <div className="calc-chip-check">
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -303,13 +360,15 @@ export default function IncentiveCalculator() {
                 })()}
 
                 <p className="calc-dd-help">
-                  {incentiveFiles.length > 0
-                    ? `${incentiveFiles.length} incentive file${incentiveFiles.length !== 1 ? "s" : ""} available`
-                    : "No incentive files uploaded yet"}
+                  {filesLoading
+                    ? "Fetching incentive files…"
+                    : incentiveFiles.length > 0
+                      ? `${incentiveFiles.length} incentive file${incentiveFiles.length !== 1 ? "s" : ""} available`
+                      : "No incentive files uploaded yet"}
                 </p>
               </div>
 
-              {/* ── Dropdown 3: Unstructured (optional) ── */}
+              {/* ── Dropdown 3: Adhoc (Optional) ── */}
               <div className="calc-dd-group" style={{ animationDelay: "140ms" }}>
                 <div className="calc-dd-label-row">
                   <label className="calc-dd-label">
@@ -320,7 +379,7 @@ export default function IncentiveCalculator() {
                         <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
                       </svg>
                     </div>
-                    Select Unstructured File
+                    Select Adhoc File
                   </label>
                   <span className="calc-dd-req-badge req-opt">Optional</span>
                 </div>
@@ -333,27 +392,30 @@ export default function IncentiveCalculator() {
                   ) : (
                     <select
                       className="calc-select teal-focus"
-                      value={selectedUnstruct}
-                      onChange={e => setSelectedUnstruct(e.target.value)}
+                      value={selectedAdhoc}
+                      onChange={e => setSelectedAdhoc(e.target.value)}
                     >
                       <option value="">— None (optional) —</option>
-                      {unstructFiles.map(f => (
+                      {adhocFiles.map(f => (
                         <option key={f.id} value={f.id}>
-                          {f.file_name} · {fmtDate(f.upload_date)}
+                          {f.file_name}{f.upload_date ? ` · ${fmtDate(f.upload_date)}` : ""}
                         </option>
                       ))}
                     </select>
                   )}
                 </div>
 
-                {selectedUnstruct && (() => {
-                  const f = fileById(unstructFiles, selectedUnstruct);
+                {selectedAdhoc && (() => {
+                  const f = fileById(adhocFiles, selectedAdhoc);
                   return f ? (
                     <div className="calc-selected-chip chip-teal">
                       <div className="calc-chip-icon chip-icon-teal">CSV</div>
                       <div className="calc-chip-info">
                         <div className="calc-chip-name chip-name-teal">{f.file_name}</div>
-                        <div className="calc-chip-meta">Uploaded {fmtDate(f.upload_date)} · by {f.uploaded_by}</div>
+                        <div className="calc-chip-meta">
+                          {f.upload_date ? `Uploaded ${fmtDate(f.upload_date)} · ` : ""}
+                          {f.uploaded_by !== "—" ? `by ${f.uploaded_by}` : ""}
+                        </div>
                       </div>
                       <div className="calc-chip-check">
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -364,7 +426,11 @@ export default function IncentiveCalculator() {
                   ) : null;
                 })()}
 
-                <p className="calc-dd-help">Skip to run without adhoc override data</p>
+                <p className="calc-dd-help">
+                  {filesLoading
+                    ? "Fetching adhoc files…"
+                    : "Skip to run without adhoc override data"}
+                </p>
               </div>
 
             </div>{/* /calc-dropdowns */}
@@ -378,7 +444,9 @@ export default function IncentiveCalculator() {
                   {validErrors.map((e, i) => (
                     <div key={i} className="calc-val-error">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
                       </svg>
                       {e}
                     </div>
@@ -426,7 +494,9 @@ export default function IncentiveCalculator() {
                   )}
                   {calcStatus === "error" && (
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="12" y1="8" x2="12" y2="12"/>
+                      <line x1="12" y1="16" x2="12.01" y2="16"/>
                     </svg>
                   )}
                 </div>
@@ -504,8 +574,8 @@ export default function IncentiveCalculator() {
                     <div className="calc-result-row"><span>Duration</span><strong>{calcResult.duration_ms} ms</strong></div>
                     <div className="calc-result-row"><span>Sales File</span><strong style={{ fontSize: 11 }}>{calcResult.sales_file}</strong></div>
                     <div className="calc-result-row"><span>Incentive File</span><strong style={{ fontSize: 11 }}>{calcResult.incentive_file}</strong></div>
-                    {calcResult.unstruct_file && (
-                      <div className="calc-result-row"><span>Extra Data</span><strong style={{ fontSize: 11 }}>{calcResult.unstruct_file}</strong></div>
+                    {calcResult.adhoc_file && (
+                      <div className="calc-result-row"><span>Adhoc File</span><strong style={{ fontSize: 11 }}>{calcResult.adhoc_file}</strong></div>
                     )}
                   </div>
                 )}
@@ -523,7 +593,9 @@ export default function IncentiveCalculator() {
             <div className="calc-how-card">
               <div className="calc-how-title">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
                 How the calculation works
               </div>
@@ -538,7 +610,7 @@ export default function IncentiveCalculator() {
               </div>
               <div className="calc-how-step">
                 <div className="calc-how-num how-num-teal">3</div>
-                <div className="calc-how-text"><strong>Unstructured file</strong> (optional) applies one-off overrides or exception rules.</div>
+                <div className="calc-how-text"><strong>Adhoc file</strong> (optional) applies one-off overrides or exception rules.</div>
               </div>
               <div className="calc-how-step">
                 <div className="calc-how-num how-num-green">4</div>

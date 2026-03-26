@@ -5,7 +5,7 @@ import LoginPage from "../pages/Login/Login"
 import Dashboard from "../pages/Dashboard/Dashboard"
 import Upload_data from "../pages/Upload_data/Upload_data"
 import UploadedFilesPage from "../pages/uploadedFiles/Uploadedfilespage"
-import IncentiveCalculator from "../pages/IncentiveCalculator/IncentiveCalculator"
+import IncentiveCalculator from "../pages/Incentivecalculator/Incentivecalculator"
 
 function AppRoutes(){
     return(
