@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import {salesDropdown} from "../../services/salesdropdownService"
 import { incentiveDropdown } from "../../services/incentivedropdownService";
 import { adhocDropdown } from "../../services/adhocdropdownService";
+import {incentiveCalculator} from "../../services/incentivecalculatorService"
 
 /* ── Calculation run steps shown in status panel ── */
 const RUN_STEPS = [
@@ -56,6 +57,7 @@ export default function IncentiveCalculator() {
   const [fetchError,     setFetchError]     = useState("");
 
   /* Selected IDs */
+  const [selectedPeriod,    setSelectedPeriod]    = useState("");
   const [selectedSales,     setSelectedSales]     = useState("");
   const [selectedIncentive, setSelectedIncentive] = useState("");
   const [selectedAdhoc,     setSelectedAdhoc]     = useState("");
@@ -106,11 +108,11 @@ export default function IncentiveCalculator() {
   /* ── Validate and Run ── */
   async function handleCalculate() {
     const errors = [];
+    if (!selectedPeriod)    errors.push("Please select Period.");
     if (!selectedSales)     errors.push("Please select a Sales Data file.");
     if (!selectedIncentive) errors.push("Please select an Incentive Sales Data file.");
     if (errors.length) { setValidErrors(errors); return; }
 
-    setValidErrors([]);
     setCalcStatus("running");
     setCalcResult(null);
     setCalcError("");
@@ -123,36 +125,20 @@ export default function IncentiveCalculator() {
         await new Promise(r => setTimeout(r, 700 + Math.random() * 400));
       }
 
-      /* ── Real API call — uncomment and wire your endpoint ──────────
-         import axios from "axios";
-         import BASE_URL from "../../config/apiConfig";
+      const payload = {
+        period:               selectedPeriod,
+        sales_upload_id:      selectedSales,
+        structured_upload_id: selectedIncentive,
+        adhoc_upload_id:      selectedAdhoc || null,
+      };
 
-         const payload = {
-           period:               "",                         // add period field if needed
-           sales_upload_id:      selectedSales,
-           structured_upload_id: selectedIncentive,
-           adhoc_upload_id:      selectedAdhoc || null,
-         };
+      const res = await incentiveCalculator(payload);
 
-         const res = await axios.post(
-           `${BASE_URL}/incentive/calculate`,
-           payload,
-           { headers: { "x-access-token": localStorage.getItem("token") } }
-         );
-         if (!res.data.status) throw new Error(res.data.message);
-         const apiResult = res.data.res_data;
-      ─────────────────────────────────────────────────────────────── */
+      if (res.status !== "success") {
+        throw new Error(res.message || "Calculation failed.");
+      }
 
-      /* Mock result — remove once real API is wired */
-      setCalcResult({
-        total_incentive:   "₹14,82,500",
-        records_processed: 108,
-        exceptions:        6,
-        duration_ms:       2340,
-        sales_file:    fileById(salesFiles,     selectedSales)?.file_name,
-        incentive_file: fileById(incentiveFiles, selectedIncentive)?.file_name,
-        adhoc_file:    selectedAdhoc ? fileById(adhocFiles, selectedAdhoc)?.file_name : null,
-      });
+      setCalcResult(res.res_data);
       setCalcStatus("success");
     } catch (err) {
       setCalcError(err.message || "Calculation failed. Please try again.");
@@ -233,6 +219,34 @@ export default function IncentiveCalculator() {
             </div>
 
             <div className="calc-dropdowns">
+
+              {/* ── Period Picker ── */}
+              <div className="calc-dd-group" style={{ animationDelay: "0ms" }}>
+                <div className="calc-dd-label-row">
+                  <label className="calc-dd-label">
+                    <div className="calc-dd-label-icon dd-icon-blue">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="16" y1="2" x2="16" y2="6"/>
+                        <line x1="8" y1="2" x2="8" y2="6"/>
+                        <line x1="3" y1="10" x2="21" y2="10"/>
+                      </svg>
+                    </div>
+                    Select Period
+                  </label>
+                  <span className="calc-dd-req-badge req-blue">Required</span>
+                </div>
+                <div className="calc-select-wrap">
+                  <input
+                    type="month"
+                    className="calc-select"
+                    value={selectedPeriod}
+                    onChange={(e) => { setSelectedPeriod(e.target.value); setValidErrors([]); }}
+                    style={{ paddingRight: "14px", cursor: "pointer" }}
+                  />
+                </div>
+                <p className="calc-dd-help">Select the month and year for this calculation run</p>
+              </div>
 
               {/* ── Dropdown 1: Sales Data ── */}
               <div className="calc-dd-group" style={{ animationDelay: "0ms" }}>
