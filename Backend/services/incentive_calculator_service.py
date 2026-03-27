@@ -192,6 +192,8 @@ async def calculate_incentives(request,current_user_id):
 
         results = []
 
+        calculation_batch_id = str(uuid.uuid4())
+
         # ---------- SAVE ----------
         for _, row in df_final.iterrows():
 
@@ -209,6 +211,7 @@ async def calculate_incentives(request,current_user_id):
             insert_calculation(
                 (
                     calc_id,
+                    calculation_batch_id,
                     emp_id,
                     org_id,
                     request.sales_upload_id,

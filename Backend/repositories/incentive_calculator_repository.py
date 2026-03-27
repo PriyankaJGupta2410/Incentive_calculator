@@ -94,6 +94,7 @@ def insert_calculation(data):
         query = """
         INSERT INTO incentive_calculations (
             _id,
+            calculation_batch_id,
             employee_id,
             org_id,
             sales_upload_id,
@@ -105,7 +106,7 @@ def insert_calculation(data):
             calculation_period,
             details,
             created_date
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
 
         cursor.execute(query, data)

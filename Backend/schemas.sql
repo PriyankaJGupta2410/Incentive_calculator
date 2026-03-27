@@ -91,7 +91,7 @@ CREATE TABLE ad_hoc_rules (
 
 CREATE TABLE incentive_calculations (
     _id VARCHAR(36) PRIMARY KEY,
-
+    calculation_batch_id VARCHAR(50),
     employee_id VARCHAR(50) NOT NULL,
     org_id VARCHAR(36) NOT NULL,
 
