@@ -38,8 +38,8 @@ async def calculate_incentives(request,current_user_id):
             day=calendar.monthrange(dt.year, dt.month)[1]
         )
 
+        # ---------- User ----------
         user_details = get_user_details(current_user_id)
-        # ✅ REQUIRED (as per repo)
         org_id = user_details.get("org_id")
 
         # ---------- Fetch Data ----------
@@ -73,12 +73,14 @@ async def calculate_incentives(request,current_user_id):
             df_rules.columns = [c.lower() for c in df_rules.columns]
             df_rules['role'] = df_rules['role'].str.lower()
             df_rules['vehicle_type'] = df_rules['vehicle_type'].str.lower()
-            # ✅ FIX: Convert Decimal → float
             df_rules['incentive_amount_inr'] = df_rules['incentive_amount_inr'].astype(float)
             df_rules['bonus_per_unit_inr'] = df_rules['bonus_per_unit_inr'].astype(float)
             df_rules['min_units'] = df_rules['min_units'].astype(int)
             df_rules['max_units'] = df_rules['max_units'].astype(int)
-        # ---------- STRUCTURED LOGIC ----------
+
+        # ---------- STRUCTURED ----------
+        structured_details_map = {}
+
         if not df_rules.empty:
 
             df_merge = df_sales.merge(
@@ -109,6 +111,20 @@ async def calculate_incentives(request,current_user_id):
                 df_valid['bonus_units'] * df_valid['bonus_per_unit_inr']
             )
 
+            # ✅ DETAILS (Same as your format)
+            for _, row in df_valid.iterrows():
+                emp_id = row['employee_id']
+
+                item = {
+                    "vehicle_model": row.get("vehicle_model"),
+                    "vehicle_type": row.get("vehicle_type"),
+                    "quantity": int(row.get("total_quantity")),
+                    "rule_applied": row.get("rule_id"),
+                    "amount": float(row.get("structured_amount"))
+                }
+
+                structured_details_map.setdefault(emp_id, []).append(item)
+
             df_structured = df_valid.groupby(
                 'employee_id'
             )['structured_amount'].sum().reset_index()
@@ -117,6 +133,7 @@ async def calculate_incentives(request,current_user_id):
             df_structured = pd.DataFrame(columns=['employee_id', 'structured_amount'])
 
         # ---------- ADHOC ----------
+        adhoc_details_map = {}
         adhoc_results = []
 
         if not df_adhoc.empty:
@@ -125,24 +142,36 @@ async def calculate_incentives(request,current_user_id):
             for emp_id, group in df_sales.groupby("employee_id"):
                 emp_role = group['role'].iloc[0]
                 total = 0
+                details = []
 
                 for _, scheme in df_adhoc.iterrows():
-                    roles = [r.strip().lower() for r in str(scheme['role']).split(',')]
+                    eligible_roles = [r.strip().lower() for r in str(scheme['role']).split(',')]
 
-                    if emp_role not in roles and 'all' not in roles:
+                    if emp_role not in eligible_roles and 'all' not in eligible_roles:
                         continue
 
                     if scheme.get('bonus_amount'):
-                        values = re.findall(
+                        bonus_matches = re.findall(
                             r"\d+",
                             str(scheme['bonus_amount']).replace(",", "")
                         )
-                        total += sum([float(v) for v in values])
+
+                        for b in bonus_matches:
+                            amount = float(b)
+                            total += amount
+
+                            details.append({
+                                "scheme_name": scheme.get("scheme_name"),
+                                "condition": scheme.get("conditions"),
+                                "amount": amount
+                            })
 
                 adhoc_results.append({
                     "employee_id": emp_id,
                     "adhoc_amount": total
                 })
+
+                adhoc_details_map[emp_id] = details
 
         df_adhoc_final = pd.DataFrame(adhoc_results)
 
@@ -167,11 +196,20 @@ async def calculate_incentives(request,current_user_id):
         for _, row in df_final.iterrows():
 
             calc_id = str(uuid.uuid4())
+            emp_id = row['employee_id']
+
+            details_structured = structured_details_map.get(emp_id, [])
+            details_ad_hoc = adhoc_details_map.get(emp_id, [])
+
+            details_json = json.dumps({
+                "structured": details_structured,
+                "ad_hoc": details_ad_hoc
+            })
 
             insert_calculation(
                 (
                     calc_id,
-                    row['employee_id'],
+                    emp_id,
                     org_id,
                     request.sales_upload_id,
                     request.structured_upload_id,
@@ -180,13 +218,13 @@ async def calculate_incentives(request,current_user_id):
                     float(row['structured_amount']),
                     float(row['adhoc_amount']),
                     request.period,
-                    json.dumps({}),
+                    details_json,
                     datetime.now()
                 )
             )
 
             results.append({
-                "employee_id": row['employee_id'],
+                "employee_id": emp_id,
                 "total_incentive": float(row['total_incentive']),
                 "structured_incentive": float(row['structured_amount']),
                 "ad_hoc_incentive": float(row['adhoc_amount'])
