@@ -127,7 +127,6 @@ def GETallcalculation(org_id: str):
     cursor = conn.cursor()
 
     try:
-        # ---------- Execute Query ----------
         query = """
             SELECT *
             FROM incentive_calculations
@@ -135,16 +134,12 @@ def GETallcalculation(org_id: str):
             ORDER BY created_date DESC
         """
         cursor.execute(query, (org_id,))
-
         rows = cursor.fetchall()
 
         if not rows:
             return []
 
-        # ✅ IMPORTANT: Extract column names properly
         columns = [col[0] for col in cursor.description]
-
-        # ✅ Create DataFrame correctly
         df = pd.DataFrame(rows, columns=columns)
 
         # ---------- FIX NaN ----------
@@ -165,9 +160,16 @@ def GETallcalculation(org_id: str):
         # ---------- GROUP BY BATCH ----------
         result = []
 
-        for batch_id, group in df.groupby("calculation_batch_id"):
+        # 🔥 Sort batches (latest first)
+        grouped = list(df.groupby("calculation_batch_id"))
+
+        for idx, (batch_id, group) in enumerate(grouped, start=1):
+
+            # ✅ Generate batch name
+            batch_name = f"BATCH_{str(idx).zfill(3)}"
 
             batch_data = {
+                "batch_name": batch_name,   # 👈 NEW FIELD
                 "calculation_batch_id": batch_id,
                 "calculation_period": group.iloc[0]["calculation_period"],
                 "created_date": group.iloc[0]["created_date"],
