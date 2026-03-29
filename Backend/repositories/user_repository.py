@@ -46,21 +46,34 @@ class UserRepository:
         try:
             cursor = conn.cursor()
 
+            # ✅ JOIN organization_master
             query = """
-                SELECT *
-                FROM user_master
-                WHERE email = %s
+                SELECT 
+                    u.*,
+                    o.name as organization_name
+                FROM user_master u
+                LEFT JOIN organization_master o
+                    ON u.org_id = o._id
+                WHERE u.email = %s
                 LIMIT 1
             """
 
             cursor.execute(query, (email,))
             result = cursor.fetchall()
 
-            df = pd.DataFrame(result)
-
-            if df.empty:
+            if not result:
                 return None
 
+            # ✅ Extract column names properly
+            columns = [col[0] for col in cursor.description]
+
+            # ✅ Create DataFrame with columns
+            df = pd.DataFrame(result, columns=columns)
+
+            # ✅ Replace NaN → None (important for JSON)
+            df = df.where(pd.notnull(df), None)
+
+            # ✅ Return single user
             return df.iloc[0].to_dict()
 
         except Exception as ex:

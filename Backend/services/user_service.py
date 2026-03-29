@@ -45,7 +45,8 @@ class UserService:
                 "org_id": user["org_id"],
                 "role": user["role"],
                 "name": user["name"],
-                "email": user["email"]
+                "email": user["email"],
+                "organization_name":user["organization_name"]
             }
 
         except Exception as ex:
