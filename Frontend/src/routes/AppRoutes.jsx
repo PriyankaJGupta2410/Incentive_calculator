@@ -6,6 +6,7 @@ import Dashboard from "../pages/Dashboard/Dashboard"
 import Upload_data from "../pages/Upload_data/Upload_data"
 import UploadedFilesPage from "../pages/uploadedFiles/Uploadedfilespage"
 import IncentiveCalculator from "../pages/Incentivecalculator/Incentivecalculator"
+import CalculationLogs from "../pages/CalculationLogs/CalculationLogs"
 
 function AppRoutes(){
     return(
@@ -17,6 +18,7 @@ function AppRoutes(){
             <Route path="/upload" element={<Upload_data />} />
             <Route path="/uploaded-files" element={<UploadedFilesPage />} />
             <Route path="/calculator" element={<IncentiveCalculator/>}/>
+            <Route path= "/calculation-logs" element= {<CalculationLogs/>}/>
         </Routes>
     )
 }

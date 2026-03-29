@@ -52,7 +52,7 @@ const menuItems = [
   { label: "Upload Data",           path: "/upload",            icon: Icons.Upload       },
   { label: "Incentive Calculator",  path: "/calculator",        icon: Icons.Rules        },
   { label: "Salespeople",           path: "/salespeople",       icon: Icons.Salespeople  },
-  { label: "Calculation Logs",      path: "/logs",              icon: Icons.Logs         }
+  { label: "Calculation Logs",      path: "/calculation-logs",  icon: Icons.Logs         }
 ];
 
 export default function Sidebar({
