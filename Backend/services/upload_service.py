@@ -516,7 +516,6 @@ async def download_file_service(upload_id:str,current_user_id:str):
             "file_path": file_path,
             "file_name": file_name
         }
-        print("res_data in service:", res_data)
     except Exception as ex:
         message = f"Error downloading file: {str(ex)}"
     return {

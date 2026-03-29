@@ -2,7 +2,8 @@ from core.database import get_connection
 import uuid
 from datetime import datetime
 import pandas as pd
-
+import json
+import numpy as np
 
 def fetch_sales(start_date, end_date, upload_id, org_id):
     conn = get_connection()
@@ -115,6 +116,69 @@ def insert_calculation(data):
 
     except Exception as ex:
         conn.rollback()
+        raise ex
+
+    finally:
+        cursor.close()
+        conn.close()
+
+def GETallcalculation(org_id: str):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        # ---------- Execute Query ----------
+        query = """
+            SELECT *
+            FROM incentive_calculations
+            WHERE org_id = %s
+            ORDER BY created_date DESC
+        """
+        cursor.execute(query, (org_id,))
+
+        rows = cursor.fetchall()
+
+        if not rows:
+            return []
+
+        # ✅ IMPORTANT: Extract column names properly
+        columns = [col[0] for col in cursor.description]
+
+        # ✅ Create DataFrame correctly
+        df = pd.DataFrame(rows, columns=columns)
+
+        # ---------- FIX NaN ----------
+        df = df.where(pd.notnull(df), None)
+
+        # ---------- SAFE JSON PARSE ----------
+        def safe_json_parse(x):
+            try:
+                if isinstance(x, str) and x.strip():
+                    return json.loads(x)
+                return {}
+            except:
+                return {}
+
+        if 'details' in df.columns:
+            df['details'] = df['details'].apply(safe_json_parse)
+
+        # ---------- GROUP BY BATCH ----------
+        result = []
+
+        for batch_id, group in df.groupby("calculation_batch_id"):
+
+            batch_data = {
+                "calculation_batch_id": batch_id,
+                "calculation_period": group.iloc[0]["calculation_period"],
+                "created_date": group.iloc[0]["created_date"],
+                "employees": group.to_dict(orient="records")
+            }
+
+            result.append(batch_data)
+
+        return result
+
+    except Exception as ex:
         raise ex
 
     finally:

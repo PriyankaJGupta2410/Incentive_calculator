@@ -114,9 +114,6 @@ def insert_ad_hoc_data(validated_rows, upload_id: str, org_id: str):
         # ==============================
         df = pd.DataFrame(validated_rows)
 
-        print("DEBUG: Initial DataFrame")
-        print(df.head())
-
         # ==============================
         # 🚀 STEP 2: FORCE NaN → None
         # ==============================
@@ -188,7 +185,6 @@ def insert_ad_hoc_data(validated_rows, upload_id: str, org_id: str):
 
     except Exception as e:
         conn.rollback()
-        print("ERROR during insert:", str(e))
         raise e
 
     finally:
