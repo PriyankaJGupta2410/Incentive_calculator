@@ -64,14 +64,16 @@ export default function Sidebar({
 }) {
   const navigate = useNavigate();
 
+  const orgName = localStorage.getItem("organization_name") || "My Org";
+
   return (
     <aside className={`db-sidebar ${sidebarOpen ? "open" : "collapsed"}`}>
 
       {/* ── Logo ── */}
       <div className="db-sidebar-top">
         <div className="db-logo">
-          <div className="db-logo-icon">Z</div>
-          {sidebarOpen && <span className="db-logo-text">ZUNEKO</span>}
+          <div className="db-logo-icon">🏢</div>
+          {sidebarOpen && <span className="db-logo-text">{orgName}</span>}
         </div>
         <button
           className="db-collapse-btn"

@@ -29,6 +29,7 @@ function Login() {
     console.log("response:", response);
     if (response?.status === "success" && response?.res_data?.token) {
       localStorage.setItem("token", response.res_data.token);
+      localStorage.setItem("organization_name",response.res_data.organization_name)
     }
 
     toast.success("Login Successful");
