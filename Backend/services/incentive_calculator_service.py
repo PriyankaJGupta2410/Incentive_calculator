@@ -10,7 +10,7 @@ from repositories.model_repository import get_user_details
 from repositories.incentive_calculator_repository import insert_calculation,fetch_adhoc_rules,fetch_structured_rules,fetch_sales,GETallcalculation
 
 ################################## INCENTIVE CALCULATION SERVICE ################
-async def calculate_incentives(request,current_user_id):
+async def calculate_incentives(request, current_user_id):
     code = 500
     status = "fail"
     res_data = {}
@@ -22,16 +22,12 @@ async def calculate_incentives(request,current_user_id):
     try:
         # ---------- Validate ----------
         if not request.period:
-            code = 400
-            message = "Period is required"
-            return {"code": code, "status": status, "message": message, "res_data": res_data}
+            return {"code": 400, "status": status, "message": "Period is required", "res_data": res_data}
 
         try:
             dt = datetime.strptime(request.period, "%Y-%m")
         except:
-            code = 400
-            message = "Invalid period format"
-            return {"code": code, "status": status, "message": message, "res_data": res_data}
+            return {"code": 400, "status": status, "message": "Invalid period format", "res_data": res_data}
 
         start_date = dt.date().replace(day=1)
         end_date = dt.date().replace(
@@ -43,22 +39,12 @@ async def calculate_incentives(request,current_user_id):
         org_id = user_details.get("org_id")
 
         # ---------- Fetch Data ----------
-        sales_data = fetch_sales(
-            start_date, end_date, request.sales_upload_id, org_id
-        )
-
+        sales_data = fetch_sales(start_date, end_date, request.sales_upload_id, org_id)
         if not sales_data:
-            code = 404
-            message = "No sales found"
-            return {"code": code, "status": status, "message": message, "res_data": res_data}
+            return {"code": 404, "status": status, "message": "No sales found", "res_data": res_data}
 
-        rules_data = fetch_structured_rules(
-            start_date, end_date, request.structured_upload_id, org_id
-        )
-
-        adhoc_data = fetch_adhoc_rules(
-            start_date, end_date, request.adhoc_upload_id, org_id
-        )
+        rules_data = fetch_structured_rules(start_date, end_date, request.structured_upload_id, org_id)
+        adhoc_data = fetch_adhoc_rules(start_date, end_date, request.adhoc_upload_id, org_id)
 
         df_sales = pd.DataFrame(sales_data)
         df_rules = pd.DataFrame(rules_data)
@@ -69,6 +55,11 @@ async def calculate_incentives(request,current_user_id):
         df_sales['vehicle_type'] = df_sales['vehicle_type'].str.lower()
         df_sales['total_quantity'] = df_sales['total_quantity'].astype(int)
 
+        df_sales = df_sales.groupby(
+            ['employee_id', 'role', 'vehicle_type'],
+            as_index=False
+        )['total_quantity'].sum()
+
         if not df_rules.empty:
             df_rules.columns = [c.lower() for c in df_rules.columns]
             df_rules['role'] = df_rules['role'].str.lower()
@@ -76,9 +67,10 @@ async def calculate_incentives(request,current_user_id):
             df_rules['incentive_amount_inr'] = df_rules['incentive_amount_inr'].astype(float)
             df_rules['bonus_per_unit_inr'] = df_rules['bonus_per_unit_inr'].astype(float)
             df_rules['min_units'] = df_rules['min_units'].astype(int)
-            df_rules['max_units'] = df_rules['max_units'].astype(int)
 
-        # ---------- STRUCTURED ----------
+        # ============================================================
+        # ✅ STRUCTURED CALCULATION
+        # ============================================================
         structured_details_map = {}
 
         if not df_rules.empty:
@@ -90,12 +82,12 @@ async def calculate_incentives(request,current_user_id):
             )
 
             df_valid = df_merge[
-                (df_merge['total_quantity'] >= df_merge['min_units']) &
-                (df_merge['total_quantity'] <= df_merge['max_units'])
+                df_merge['total_quantity'] >= df_merge['min_units']
             ]
 
             df_valid = df_valid.sort_values(
-                ['employee_id', 'vehicle_type', 'min_units']
+                ['employee_id', 'vehicle_type', 'min_units'],
+                ascending=[True, True, False]
             )
 
             df_valid = df_valid.groupby(
@@ -106,24 +98,27 @@ async def calculate_incentives(request,current_user_id):
                 df_valid['total_quantity'] - df_valid['min_units']
             ).clip(lower=0)
 
-            df_valid['structured_amount'] = (
-                df_valid['incentive_amount_inr'] +
+            df_valid['bonus_amount'] = (
                 df_valid['bonus_units'] * df_valid['bonus_per_unit_inr']
             )
 
-            # ✅ DETAILS (Same as your format)
+            df_valid['structured_amount'] = (
+                df_valid['incentive_amount_inr'] + df_valid['bonus_amount']
+            )
+
             for _, row in df_valid.iterrows():
                 emp_id = row['employee_id']
 
-                item = {
-                    "vehicle_model": row.get("vehicle_model"),
+                structured_details_map.setdefault(emp_id, []).append({
                     "vehicle_type": row.get("vehicle_type"),
                     "quantity": int(row.get("total_quantity")),
                     "rule_applied": row.get("rule_id"),
-                    "amount": float(row.get("structured_amount"))
-                }
-
-                structured_details_map.setdefault(emp_id, []).append(item)
+                    "base_amount": float(row.get("incentive_amount_inr")),
+                    "bonus_units": int(row.get("bonus_units")),
+                    "bonus_per_unit": float(row.get("bonus_per_unit_inr")),
+                    "bonus_amount": float(row.get("bonus_amount")),
+                    "total": float(row.get("structured_amount"))
+                })
 
             df_structured = df_valid.groupby(
                 'employee_id'
@@ -132,50 +127,116 @@ async def calculate_incentives(request,current_user_id):
         else:
             df_structured = pd.DataFrame(columns=['employee_id', 'structured_amount'])
 
-        # ---------- ADHOC ----------
+        # ============================================================
+        # ✅ ADHOC CALCULATION (UPDATED FIX)
+        # ============================================================
         adhoc_details_map = {}
         adhoc_results = []
 
         if not df_adhoc.empty:
             df_adhoc.columns = [c.lower() for c in df_adhoc.columns]
 
+            # Pre-calc ranking
+            ranking_df = df_sales.groupby("employee_id")['total_quantity'].sum().reset_index()
+            ranking_df = ranking_df.sort_values(by='total_quantity', ascending=False).reset_index(drop=True)
+            ranking_df['rank'] = ranking_df.index + 1
+
+            branch_total = df_sales['total_quantity'].sum()
+
             for emp_id, group in df_sales.groupby("employee_id"):
+
                 emp_role = group['role'].iloc[0]
                 total = 0
                 details = []
 
-                for _, scheme in df_adhoc.iterrows():
-                    eligible_roles = [r.strip().lower() for r in str(scheme['role']).split(',')]
+                emp_structured = df_structured[
+                    df_structured['employee_id'] == emp_id
+                ]['structured_amount']
 
-                    if emp_role not in eligible_roles and 'all' not in eligible_roles:
-                        continue
+                emp_structured = float(emp_structured.values[0]) if len(emp_structured) else 0
 
-                    if scheme.get('bonus_amount'):
-                        bonus_matches = re.findall(
-                            r"\d+",
-                            str(scheme['bonus_amount']).replace(",", "")
-                        )
+                vehicle_types_sold = group[group['total_quantity'] > 0]['vehicle_type'].nunique()
 
-                        for b in bonus_matches:
-                            amount = float(b)
-                            total += amount
+                emp_rank = ranking_df[
+                    ranking_df['employee_id'] == emp_id
+                ]['rank'].values[0]
 
-                            details.append({
+                for scheme_id, scheme_group in df_adhoc.groupby("scheme_id"):
+
+                    best_amount = 0
+                    best_detail = None
+
+                    for _, scheme in scheme_group.iterrows():
+
+                        eligible_roles = [r.strip().lower() for r in str(scheme['role']).split(',')]
+
+                        if emp_role not in eligible_roles and 'all' not in eligible_roles:
+                            continue
+
+                        condition = str(scheme.get("conditions")).lower()
+                        bonus_raw = str(scheme.get("bonus_amount")).lower()
+
+                        apply_flag = False
+                        amount = 0
+
+                        # ---------- CONDITION LOGIC ----------
+
+                        if "all 4 vehicle types" in condition:
+                            if vehicle_types_sold >= 4:
+                                apply_flag = True
+
+                        elif "double incentive" in condition or "x" in bonus_raw:
+                            multiplier = float(re.findall(r"\d+\.?\d*", bonus_raw)[0])
+                            amount = emp_structured * (multiplier - 1)
+                            apply_flag = True
+
+                        elif "branch achieves" in condition:
+                            match = re.search(r"\d+%", condition)
+                            if match:
+                                percent = float(match.group().replace('%', ''))
+                                if branch_total >= percent:
+                                    apply_flag = True
+
+                        elif "top performer" in condition and emp_rank == 1:
+                            apply_flag = True
+
+                        elif "2nd rank" in condition and emp_rank == 2:
+                            apply_flag = True
+
+                        elif "zero days missed" in condition:
+                            apply_flag = True  # TODO: attendance logic
+
+                        # ---------- AMOUNT ----------
+                        if apply_flag and amount == 0:
+                            match = re.search(r"\d+", bonus_raw.replace(",", ""))
+                            if match:
+                                amount = float(match.group())
+
+                        if apply_flag and amount > best_amount:
+                            best_amount = amount
+                            best_detail = {
+                                "scheme_id": scheme_id,
                                 "scheme_name": scheme.get("scheme_name"),
                                 "condition": scheme.get("conditions"),
-                                "amount": amount
-                            })
+                                "amount": round(amount, 2)
+                            }
+
+                    if best_amount > 0:
+                        total += best_amount
+                        details.append(best_detail)
 
                 adhoc_results.append({
                     "employee_id": emp_id,
-                    "adhoc_amount": total
+                    "adhoc_amount": round(total, 2)
                 })
 
                 adhoc_details_map[emp_id] = details
 
         df_adhoc_final = pd.DataFrame(adhoc_results)
 
-        # ---------- FINAL ----------
+        # ============================================================
+        # ✅ FINAL
+        # ============================================================
         if not df_adhoc_final.empty:
             df_final = df_structured.merge(
                 df_adhoc_final,
@@ -190,41 +251,41 @@ async def calculate_incentives(request,current_user_id):
             df_final['structured_amount'] + df_final['adhoc_amount']
         )
 
-        results = []
+        df_final['structured_amount'] = df_final['structured_amount'].round(2)
+        df_final['adhoc_amount'] = df_final['adhoc_amount'].round(2)
+        df_final['total_incentive'] = df_final['total_incentive'].round(2)
 
+        # ============================================================
+        # ✅ SAVE
+        # ============================================================
+        results = []
         calculation_batch_id = str(uuid.uuid4())
 
-        # ---------- SAVE ----------
         for _, row in df_final.iterrows():
 
             calc_id = str(uuid.uuid4())
             emp_id = row['employee_id']
 
-            details_structured = structured_details_map.get(emp_id, [])
-            details_ad_hoc = adhoc_details_map.get(emp_id, [])
-
             details_json = json.dumps({
-                "structured": details_structured,
-                "ad_hoc": details_ad_hoc
+                "structured": structured_details_map.get(emp_id, []),
+                "ad_hoc": adhoc_details_map.get(emp_id, [])
             })
 
-            insert_calculation(
-                (
-                    calc_id,
-                    calculation_batch_id,
-                    emp_id,
-                    org_id,
-                    request.sales_upload_id,
-                    request.structured_upload_id,
-                    request.adhoc_upload_id,
-                    float(row['total_incentive']),
-                    float(row['structured_amount']),
-                    float(row['adhoc_amount']),
-                    request.period,
-                    details_json,
-                    datetime.now()
-                )
-            )
+            insert_calculation((
+                calc_id,
+                calculation_batch_id,
+                emp_id,
+                org_id,
+                request.sales_upload_id,
+                request.structured_upload_id,
+                request.adhoc_upload_id,
+                float(row['total_incentive']),
+                float(row['structured_amount']),
+                float(row['adhoc_amount']),
+                request.period,
+                details_json,
+                datetime.now()
+            ))
 
             results.append({
                 "employee_id": emp_id,
