@@ -300,11 +300,13 @@ const Dashboard = () => {
                           </svg>
                         </div>
                         <div className="batch-row__info">
-                          <span className="batch-row__id" title={batch.calculation_batch_id}>
-                            {batch.calculation_batch_id.length > 12
-                              ? batch.calculation_batch_id.slice(0, 8) + "…"
-                              : batch.calculation_batch_id}
+                          <span
+                            className="batch-row__id"
+                            title={batch.calculation_batch_id}
+                          >
+                            {batch.batch_name}
                           </span>
+
                           <span className="batch-row__period">📆 {batch.calculation_period}</span>
                         </div>
                         <div className="batch-row__meta">
@@ -364,7 +366,7 @@ const Dashboard = () => {
                           <RankBadge rank={i + 1} />
                           <div className="earner-info">
                             <div className="earner-top">
-                              <span className="earner-id">{emp.employee_id}</span>
+                              <span className="earner-id">{emp.employee_id}-{emp.batch_name}</span>
                             </div>
                             <div className="earner-bar-track">
                               <div

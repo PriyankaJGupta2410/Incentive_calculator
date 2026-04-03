@@ -56,7 +56,28 @@ def GETdashboard_metrics(org_id):
                 .head(5)
             )
 
+            # ✅ Add Batch Number (Latest = 1)
+            grouped_batches["batch_no"] = range(1, len(grouped_batches) + 1)
+
+            # ✅ Add Batch Name (UI Friendly)
+            grouped_batches["batch_name"] = grouped_batches["batch_no"].apply(
+                lambda x: f"Batch_00{x}"
+            )
+
+            # ✅ Reorder columns
+            grouped_batches = grouped_batches[
+                [
+                    "batch_name",
+                    "calculation_batch_id",
+                    "calculation_period",
+                    "total_employees",
+                    "total_payout",
+                    "created_date"
+                ]
+            ]
+
             recent_batches = grouped_batches.to_dict(orient="records")
+
         else:
             recent_batches = []
 
@@ -65,6 +86,12 @@ def GETdashboard_metrics(org_id):
 
         # ========= TOP EARNERS =========
         top_earners = []
+        batch_name_map = {}
+        if recent_batches:
+            batch_name_map = {
+                batch["calculation_batch_id"]: batch["batch_name"]
+                for batch in recent_batches
+            }
         if latest_batch:
             df_latest = df_batches[df_batches["calculation_batch_id"] == latest_batch]
 
@@ -78,6 +105,14 @@ def GETdashboard_metrics(org_id):
                     .head(5)
                 )
 
+                # ✅ Add batch_name column
+                top_earners_df["batch_name"] = batch_name_map.get(latest_batch, None)
+
+                # Optional: reorder columns
+                top_earners_df = top_earners_df[
+                    ["batch_name", "employee_id", "total_incentive"]
+                ]
+
                 top_earners = top_earners_df.to_dict(orient="records")
 
         # ========= KPI FORMAT =========
@@ -86,6 +121,11 @@ def GETdashboard_metrics(org_id):
             "total_employees_calculated": kpi_result["total_employees_calculated"] or 0,
             "total_payout": float(kpi_result["total_payout"] or 0),
             "average_incentive": float(kpi_result["average_incentive"] or 0)
+        } if kpi_result else {
+            "total_calculation_batches": 0,
+            "total_employees_calculated": 0,
+            "total_payout": 0.0,
+            "average_incentive": 0.0
         }
 
         return {
