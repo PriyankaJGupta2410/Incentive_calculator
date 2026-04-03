@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/sidebar/sidebar";
 import "./Dashboard.css";
+import BASE_URL from "../../config/apiConfig";
 
 /* ─── Helpers ─────────────────────────────────────────────── */
 const fmt = (num) =>
@@ -37,55 +38,69 @@ const RankBadge = ({ rank }) => {
   );
 };
 
+/* ─── Skeleton Loader ──────────────────────────────────────── */
+const Skeleton = ({ width = "100%", height = "16px", radius = "6px", style = {} }) => (
+  <div
+    className="skeleton"
+    style={{ width, height, borderRadius: radius, ...style }}
+  />
+);
+
 /* ─── Main Dashboard ───────────────────────────────────────── */
 const Dashboard = () => {
-  const [active, setActive]           = useState("Dashboard");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [active, setActive]               = useState("Dashboard");
+  const [sidebarOpen, setSidebarOpen]     = useState(true);
   const [mobileSidebar, setMobileSidebar] = useState(false);
   const navigate = useNavigate();
 
-  const [data, setData] = useState({
-    kpi: { batches: 0, employees: 0, total_payout: 0, avg_incentive: 0 },
-    recent_batches: [],
-    top_earners: [],
-  });
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
 
   useEffect(() => {
-    setData({
-      kpi: {
-        batches: 1,
-        employees: 108,
-        total_payout: 13154048,
-        avg_incentive: 12180,
-      },
-      recent_batches: [
-        {
-          calculation_batch_id: "BATCH_001",
-          calculation_period: "2025-09",
-          employees: 108,
-          total_payout: 13154048,
-          status: "Completed",
-        },
-        {
-          calculation_batch_id: "BATCH_002",
-          calculation_period: "2025-08",
-          employees: 97,
-          total_payout: 11820000,
-          status: "Completed",
-        },
-      ],
-      top_earners: [
-        { employee_id: "ASM1037", total: 85000, type: "Structured" },
-        { employee_id: "ASM1092", total: 72000, type: "Ad-hoc"     },
-        { employee_id: "ASM1101", total: 65000, type: "Structured" },
-        { employee_id: "ASM1058", total: 58000, type: "Ad-hoc"     },
-        { employee_id: "ASM1076", total: 51000, type: "Structured" },
-      ],
-    });
+    const fetchMetrics = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const res = await fetch(`${BASE_URL}/dashboard/metrics`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "x-access-token": localStorage.getItem("token") || "",
+          },
+        });
+
+        const json = await res.json();
+
+        if (!res.ok) {
+          throw new Error(json.message || `Server error: ${res.status}`);
+        }
+
+        if (json.code !== 200 || json.status !== "success") {
+          throw new Error(json.message || "Unexpected response from server");
+        }
+
+        setData(json.res_data);
+      } catch (err) {
+        console.error("Dashboard API Error:", err);
+        setError(err.message || "Failed to load dashboard data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMetrics();
   }, []);
 
-  const { kpi, recent_batches, top_earners } = data;
-  const maxEarner = Math.max(...top_earners.map((e) => e.total), 1);
+  /* ── Derived values ── */
+  const metrics       = data?.metrics       || {};
+  const recentBatches = data?.recent_batches || [];
+  const topEarners    = data?.top_earners    || [];
+  const maxEarner     = Math.max(...topEarners.map((e) => e.total_incentive), 1);
+
+  /* ── Latest period label for badge ── */
+  const latestPeriod = recentBatches[0]?.calculation_period ?? "";
 
   return (
     <div className="db-root">
@@ -127,7 +142,10 @@ const Dashboard = () => {
           <div className="dash-header">
             <div>
               <h1 className="dash-title">Dashboard</h1>
-              <p className="dash-subtitle">Incentive calculations overview — September 2025</p>
+              <p className="dash-subtitle">
+                Incentive calculations overview
+                {latestPeriod && ` — ${latestPeriod}`}
+              </p>
             </div>
             <div className="dash-header-actions">
               <button className="hdr-btn hdr-btn--ghost" onClick={() => navigate("/calculation-logs")}>
@@ -139,60 +157,92 @@ const Dashboard = () => {
             </div>
           </div>
 
+          {/* ── Error Banner ── */}
+          {error && (
+            <div className="error-banner">
+              <span className="error-banner__icon">⚠️</span>
+              <span>{error}</span>
+              <button
+                className="error-banner__retry"
+                onClick={() => window.location.reload()}
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
           {/* ── KPI Grid ── */}
           <div className="kpi-grid">
-            <KpiCard
-              title="Total Batches"
-              value={kpi.batches}
-              sub="All time"
-              icon={
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-                  <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-                </svg>
-              }
-              accent="indigo"
-              delay={0}
-            />
-            <KpiCard
-              title="Employees"
-              value={kpi.employees}
-              sub="In latest batch"
-              icon={
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                  <circle cx="9" cy="7" r="4"/>
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                </svg>
-              }
-              accent="blue"
-              delay={80}
-            />
-            <KpiCard
-              title="Total Payout"
-              value={fmtCompact(kpi.total_payout)}
-              sub={fmt(kpi.total_payout) + " exact"}
-              icon={
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                </svg>
-              }
-              accent="emerald"
-              delay={160}
-            />
-            <KpiCard
-              title="Avg Incentive"
-              value={fmtCompact(kpi.avg_incentive)}
-              sub="Per employee"
-              icon={
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-                </svg>
-              }
-              accent="amber"
-              delay={240}
-            />
+            {loading ? (
+              <>
+                {[0, 80, 160, 240].map((d) => (
+                  <div className="kpi-card kpi-card--skeleton" key={d} style={{ animationDelay: `${d}ms` }}>
+                    <div className="kpi-card__top">
+                      <Skeleton width="34px" height="34px" radius="8px" />
+                      <Skeleton width="80px" height="12px" />
+                    </div>
+                    <Skeleton width="60%" height="28px" style={{ marginBottom: 6 }} />
+                    <Skeleton width="45%" height="11px" />
+                    <div className="kpi-accent-bar kpi-accent-bar--indigo" style={{ opacity: 0.15 }} />
+                  </div>
+                ))}
+              </>
+            ) : (
+              <>
+                <KpiCard
+                  title="Total Batches"
+                  value={metrics.total_calculation_batches ?? 0}
+                  sub="All time"
+                  icon={
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                      <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+                    </svg>
+                  }
+                  accent="indigo"
+                  delay={0}
+                />
+                <KpiCard
+                  title="Employees"
+                  value={metrics.total_employees_calculated ?? 0}
+                  sub="In latest batch"
+                  icon={
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                      <circle cx="9" cy="7" r="4"/>
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                  }
+                  accent="blue"
+                  delay={80}
+                />
+                <KpiCard
+                  title="Total Payout"
+                  value={fmtCompact(metrics.total_payout ?? 0)}
+                  sub={fmt(metrics.total_payout ?? 0) + " exact"}
+                  icon={
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    </svg>
+                  }
+                  accent="emerald"
+                  delay={160}
+                />
+                <KpiCard
+                  title="Avg Incentive"
+                  value={fmtCompact(Math.round(metrics.average_incentive ?? 0))}
+                  sub="Per employee"
+                  icon={
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                  }
+                  accent="amber"
+                  delay={240}
+                />
+              </>
+            )}
           </div>
 
           {/* ── Main Grid ── */}
@@ -214,15 +264,35 @@ const Dashboard = () => {
               </div>
 
               <div className="dash-card__body">
-                {recent_batches.length === 0 ? (
+                {loading ? (
+                  <div className="batch-list">
+                    {[0, 1].map((i) => (
+                      <div className="batch-row" key={i}>
+                        <Skeleton width="32px" height="32px" radius="8px" style={{ flexShrink: 0 }} />
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                          <Skeleton width="120px" height="13px" />
+                          <Skeleton width="80px" height="11px" />
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                          <Skeleton width="80px" height="11px" />
+                          <Skeleton width="60px" height="20px" radius="20px" />
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                          <Skeleton width="70px" height="15px" />
+                          <Skeleton width="90px" height="10px" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : recentBatches.length === 0 ? (
                   <div className="dash-empty">
                     <span className="dash-empty-icon">📭</span>
                     <p>No batches yet</p>
                   </div>
                 ) : (
                   <div className="batch-list">
-                    {recent_batches.map((batch, i) => (
-                      <div className="batch-row" key={i}>
+                    {recentBatches.map((batch, i) => (
+                      <div className="batch-row" key={batch.calculation_batch_id ?? i}>
                         <div className="batch-row__icon">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
@@ -230,12 +300,16 @@ const Dashboard = () => {
                           </svg>
                         </div>
                         <div className="batch-row__info">
-                          <span className="batch-row__id">{batch.calculation_batch_id}</span>
+                          <span className="batch-row__id" title={batch.calculation_batch_id}>
+                            {batch.calculation_batch_id.length > 12
+                              ? batch.calculation_batch_id.slice(0, 8) + "…"
+                              : batch.calculation_batch_id}
+                          </span>
                           <span className="batch-row__period">📆 {batch.calculation_period}</span>
                         </div>
                         <div className="batch-row__meta">
-                          <span className="batch-row__emp">{batch.employees} employees</span>
-                          <span className="batch-status batch-status--done">{batch.status}</span>
+                          <span className="batch-row__emp">{batch.total_employees} employees</span>
+                          <span className="batch-status batch-status--done">Completed</span>
                         </div>
                         <div className="batch-row__amount">
                           <span className="batch-row__payout">{fmtCompact(batch.total_payout)}</span>
@@ -255,28 +329,42 @@ const Dashboard = () => {
                   <h3 className="dash-card__title">Top Earners</h3>
                   <p className="dash-card__sub">Highest incentives this period</p>
                 </div>
-                <span className="header-badge">🏆 Sep 2025</span>
+                {latestPeriod && (
+                  <span className="header-badge">🏆 {latestPeriod}</span>
+                )}
               </div>
 
               <div className="dash-card__body">
-                {top_earners.length === 0 ? (
+                {loading ? (
+                  <div className="earner-list">
+                    {[0, 1, 2, 3, 4].map((i) => (
+                      <div className="earner-row" key={i}>
+                        <Skeleton width="28px" height="22px" radius="4px" style={{ flexShrink: 0 }} />
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                            <Skeleton width="70px" height="13px" />
+                          </div>
+                          <Skeleton width="100%" height="4px" radius="2px" />
+                        </div>
+                        <Skeleton width="65px" height="13px" style={{ flexShrink: 0 }} />
+                      </div>
+                    ))}
+                  </div>
+                ) : topEarners.length === 0 ? (
                   <div className="dash-empty">
                     <span className="dash-empty-icon">📊</span>
                     <p>No earner data yet</p>
                   </div>
                 ) : (
                   <div className="earner-list">
-                    {top_earners.map((emp, i) => {
-                      const pct = Math.round((emp.total / maxEarner) * 100);
+                    {topEarners.map((emp, i) => {
+                      const pct = Math.round((emp.total_incentive / maxEarner) * 100);
                       return (
-                        <div className="earner-row" key={i}>
+                        <div className="earner-row" key={emp.employee_id ?? i}>
                           <RankBadge rank={i + 1} />
                           <div className="earner-info">
                             <div className="earner-top">
                               <span className="earner-id">{emp.employee_id}</span>
-                              <span className={`earner-type earner-type--${emp.type === "Structured" ? "str" : "adhoc"}`}>
-                                {emp.type}
-                              </span>
                             </div>
                             <div className="earner-bar-track">
                               <div
@@ -285,7 +373,7 @@ const Dashboard = () => {
                               />
                             </div>
                           </div>
-                          <span className="earner-amount">{fmt(emp.total)}</span>
+                          <span className="earner-amount">{fmt(emp.total_incentive)}</span>
                         </div>
                       );
                     })}
