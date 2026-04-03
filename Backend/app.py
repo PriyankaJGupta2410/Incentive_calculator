@@ -20,12 +20,14 @@ from routers import organization_router
 from routers import user_router
 from routers import upload_router
 from routers import incentive_calculator_router
+from routers import dashboard_router
 
 ################### Declar Routes ####################
 app.include_router(organization_router.organizationrouter)
 app.include_router(user_router.userRouter)
 app.include_router(upload_router.upload_router)
 app.include_router(incentive_calculator_router.calculator_router)
+app.include_router(dashboard_router.dashboard_router)
 
 @app.get("/")
 async def index():

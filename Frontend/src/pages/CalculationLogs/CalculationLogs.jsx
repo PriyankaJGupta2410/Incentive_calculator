@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { calculationlogs } from "../../services/calculationlogsService";
 import "./CalculationLogs.css";
 import Sidebar from "../../components/sidebar/sidebar";
@@ -19,10 +20,10 @@ const SCHEME_META = {
 };
 
 const VEHICLE_COLORS = {
-  commercial:     { cls: "vt-commercial",  label: "Commercial"    },
-  "compact sedan":{ cls: "vt-compact",     label: "Compact Sedan" },
-  "mid-size sedan":{ cls: "vt-midsedan",   label: "Mid-Size Sedan"},
-  suv:            { cls: "vt-suv",         label: "SUV"           },
+  commercial:      { cls: "vt-commercial",  label: "Commercial"     },
+  "compact sedan": { cls: "vt-compact",     label: "Compact Sedan"  },
+  "mid-size sedan":{ cls: "vt-midsedan",    label: "Mid-Size Sedan" },
+  suv:             { cls: "vt-suv",         label: "SUV"            },
 };
 
 function SchemeTag({ name }) {
@@ -39,14 +40,27 @@ function VehicleTypeBadge({ type }) {
 function BreakdownModal({ emp, onClose }) {
   if (!emp) return null;
 
-  /* Use amount >= 0 so we show all valid items */
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  // Close on Escape key
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   const adhoc      = (emp.details?.ad_hoc     || []).filter((a) => a.amount > 0);
   const structured = (emp.details?.structured || []);
 
   const adhocTotal      = adhoc.reduce((s, a) => s + (a.amount || 0), 0);
   const structuredTotal = structured.reduce((s, s2) => s + (s2.total || 0), 0);
 
-  return (
+  const modal = (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
 
@@ -66,9 +80,9 @@ function BreakdownModal({ emp, onClose }) {
         {/* ── Summary Cards ── */}
         <div className="modal-summary">
           {[
-            { label: "Total Incentive", val: fmt(emp.total_incentive),      cls: "ms-indigo"  },
-            { label: "Ad-hoc Total",    val: fmt(emp.ad_hoc_incentive),     cls: "ms-amber"   },
-            { label: "Structured Total",val: fmt(emp.structured_incentive), cls: "ms-emerald" },
+            { label: "Total Incentive",  val: fmt(emp.total_incentive),      cls: "ms-indigo"  },
+            { label: "Ad-hoc Total",     val: fmt(emp.ad_hoc_incentive),     cls: "ms-amber"   },
+            { label: "Structured Total", val: fmt(emp.structured_incentive), cls: "ms-emerald" },
           ].map((c) => (
             <div key={c.label} className={`modal-summary-card ${c.cls}`}>
               <div className="ms-val">{c.val}</div>
@@ -107,9 +121,7 @@ function BreakdownModal({ emp, onClose }) {
                     {adhoc.map((item, i) => (
                       <tr key={item.scheme_id ?? i}>
                         <td className="col-idx">{i + 1}</td>
-                        <td>
-                          <SchemeTag name={item.scheme_name} />
-                        </td>
+                        <td><SchemeTag name={item.scheme_name} /></td>
                         <td className="col-condition">{item.condition}</td>
                         <td className="col-amount">
                           <span className="amt-pill amt-amber">{fmt(item.amount)}</span>
@@ -157,12 +169,8 @@ function BreakdownModal({ emp, onClose }) {
                     {structured.map((s, i) => (
                       <tr key={i}>
                         <td className="col-idx">{i + 1}</td>
-                        <td>
-                          <VehicleTypeBadge type={s.vehicle_type} />
-                        </td>
-                        <td>
-                          <span className="rule-chip">{s.rule_applied}</span>
-                        </td>
+                        <td><VehicleTypeBadge type={s.vehicle_type} /></td>
+                        <td><span className="rule-chip">{s.rule_applied}</span></td>
                         <td className="col-center">
                           <span className="qty-chip">{s.quantity}</span>
                         </td>
@@ -170,25 +178,19 @@ function BreakdownModal({ emp, onClose }) {
                           <span className="amt-neutral">{fmt(s.base_amount)}</span>
                         </td>
                         <td className="col-center">
-                          {s.bonus_units > 0 ? (
-                            <span className="bonus-units-chip">{s.bonus_units}</span>
-                          ) : (
-                            <span className="col-dash">—</span>
-                          )}
+                          {s.bonus_units > 0
+                            ? <span className="bonus-units-chip">{s.bonus_units}</span>
+                            : <span className="col-dash">—</span>}
                         </td>
                         <td className="col-amount">
-                          {s.bonus_per_unit > 0 ? (
-                            <span className="amt-neutral">{fmt(s.bonus_per_unit)}</span>
-                          ) : (
-                            <span className="col-dash">—</span>
-                          )}
+                          {s.bonus_per_unit > 0
+                            ? <span className="amt-neutral">{fmt(s.bonus_per_unit)}</span>
+                            : <span className="col-dash">—</span>}
                         </td>
                         <td className="col-amount">
-                          {s.bonus_amount > 0 ? (
-                            <span className="amt-emerald">{fmt(s.bonus_amount)}</span>
-                          ) : (
-                            <span className="col-dash">—</span>
-                          )}
+                          {s.bonus_amount > 0
+                            ? <span className="amt-emerald">{fmt(s.bonus_amount)}</span>
+                            : <span className="col-dash">—</span>}
                         </td>
                         <td className="col-amount">
                           <span className="amt-pill amt-emerald-pill">{fmt(s.total)}</span>
@@ -210,9 +212,12 @@ function BreakdownModal({ emp, onClose }) {
       </div>
     </div>
   );
+
+  // ✅ Render into document.body to escape any overflow/transform parent
+  return createPortal(modal, document.body);
 }
 
-/* ─── Batch Section (card + inline employee table) ─────────── */
+/* ─── Batch Section ─────────────────────────────────────────── */
 function BatchSection({ batch }) {
   const [expanded,   setExpanded]   = useState(false);
   const [empModal,   setEmpModal]   = useState(null);
@@ -220,10 +225,10 @@ function BatchSection({ batch }) {
   const [empSortDir, setEmpSortDir] = useState("asc");
 
   const employees = batch.employees || [];
-  const batchTotal  = employees.reduce((s, e) => s + e.total_incentive, 0);
-  const withStr     = employees.filter((e) => e.structured_incentive > 0).length;
-  const maxInc      = Math.max(...employees.map((e) => e.total_incentive), 1);
-  const topEarner   = employees.reduce(
+  const batchTotal = employees.reduce((s, e) => s + e.total_incentive, 0);
+  const withStr    = employees.filter((e) => e.structured_incentive > 0).length;
+  const maxInc     = Math.max(...employees.map((e) => e.total_incentive), 1);
+  const topEarner  = employees.reduce(
     (best, e) => (e.total_incentive > (best?.total_incentive ?? -1) ? e : best),
     null
   );
@@ -275,10 +280,10 @@ function BatchSection({ batch }) {
       {/* ── Stats Strip ── */}
       <div className="batch-stats">
         {[
-          { val: employees.length,          lbl: "Employees"      },
-          { val: employees.length - withStr, lbl: "Ad-hoc Only"    },
-          { val: withStr,                    lbl: "With Structured" },
-          { val: topEarner?.employee_id ?? "—", lbl: "🏆 Top Earner", special: true },
+          { val: employees.length,             lbl: "Employees"      },
+          { val: employees.length - withStr,   lbl: "Ad-hoc Only"    },
+          { val: withStr,                      lbl: "With Structured" },
+          { val: topEarner?.employee_id ?? "—",lbl: "🏆 Top Earner", special: true },
         ].map((s, i, arr) => (
           <>
             <div key={s.lbl} className="batch-stat">
@@ -371,11 +376,9 @@ function BatchSection({ batch }) {
                         </span>
                       </td>
                       <td>
-                        {hasStr ? (
-                          <span className="cell-amount green">{fmt(emp.structured_incentive)}</span>
-                        ) : (
-                          <span className="cell-dash">—</span>
-                        )}
+                        {hasStr
+                          ? <span className="cell-amount green">{fmt(emp.structured_incentive)}</span>
+                          : <span className="cell-dash">—</span>}
                       </td>
                       <td>
                         <div className="cell-total-wrap">
@@ -393,13 +396,11 @@ function BatchSection({ batch }) {
                         </div>
                       </td>
                       <td>
-                        {isZero ? (
-                          <span className="type-badge badge-zero">No Incentive</span>
-                        ) : hasStr ? (
-                          <span className="type-badge badge-str">Structured</span>
-                        ) : (
-                          <span className="type-badge badge-adhoc">Ad-hoc</span>
-                        )}
+                        {isZero
+                          ? <span className="type-badge badge-zero">No Incentive</span>
+                          : hasStr
+                            ? <span className="type-badge badge-str">Structured</span>
+                            : <span className="type-badge badge-adhoc">Ad-hoc</span>}
                       </td>
                       <td>
                         <button
@@ -420,19 +421,21 @@ function BatchSection({ batch }) {
         </div>
       )}
 
-      {empModal && <BreakdownModal emp={empModal} onClose={() => setEmpModal(null)} />}
+      {/* ✅ Modal rendered via portal — unaffected by parent overflow/transform */}
+      {empModal && (
+        <BreakdownModal emp={empModal} onClose={() => setEmpModal(null)} />
+      )}
     </div>
   );
 }
 
 /* ─── Main Page ─────────────────────────────────────────────── */
 export default function CalculationLogs() {
-  const [batches,  setBatches]  = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
-  const [search,   setSearch]   = useState("");
-  const [sortDir,  setSortDir]  = useState("desc");
-
+  const [batches,     setBatches]     = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState(null);
+  const [search,      setSearch]      = useState("");
+  const [sortDir,     setSortDir]     = useState("desc");
   const [active,      setActive]      = useState("Calculation logs");
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -493,9 +496,9 @@ export default function CalculationLogs() {
             {!loading && !error && (
               <div className="cl-header-stats">
                 {[
-                  { val: batches.length,   lbl: "Batches"       },
-                  { val: totalEmployees,   lbl: "Employees"     },
-                  { val: fmt(totalPayout), lbl: "Total Payout"  },
+                  { val: batches.length,   lbl: "Batches"      },
+                  { val: totalEmployees,   lbl: "Employees"    },
+                  { val: fmt(totalPayout), lbl: "Total Payout" },
                 ].map((s, i, arr) => (
                   <>
                     <div key={s.lbl} className="hs-item">
@@ -554,11 +557,10 @@ export default function CalculationLogs() {
 
           {!loading && !error && filtered.length > 0 && (
             <div className="cl-list">
-              {filtered.map((batch, idx) => (
+              {filtered.map((batch) => (
                 <BatchSection
                   key={batch.calculation_batch_id}
                   batch={batch}
-                  idx={idx}
                 />
               ))}
             </div>
