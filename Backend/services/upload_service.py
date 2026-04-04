@@ -16,275 +16,309 @@ async def process_sales_file(file: UploadFile, current_user_id: str):
     """
     Process uploaded CSV/Excel file and insert into DB
     """
+    code = 500
+    status = "fail"
+    res_data = {}
+    message = ""
+    try:
 
-    file_path = save_temp_file(file)
-    
-    user_details = get_user_details(current_user_id)
+        file_path = save_temp_file(file)
+        
+        user_details = get_user_details(current_user_id)
 
-    # Read file
-    if file.filename.endswith(".csv"):
-        df = pd.read_csv(file_path)
+        # Read file
+        if file.filename.endswith(".csv"):
+            df = pd.read_csv(file_path)
 
-    # Strip spaces from columns
-    df.columns = [c.strip().lower() for c in df.columns]
+        # Strip spaces from columns
+        df.columns = [c.strip().lower() for c in df.columns]
 
-    # Required columns
-    required_columns = [
-        "employee_id", "branch", "role",
-        "vehicle_model", "vehicle_type",
-        "quantity", "sale_date"
-    ]
+        # Required columns
+        required_columns = [
+            "employee_id", "branch", "role",
+            "vehicle_model", "vehicle_type",
+            "quantity", "sale_date"
+        ]
 
-    missing_cols = [col for col in required_columns if col not in df.columns]
+        missing_cols = [col for col in required_columns if col not in df.columns]
 
-    if missing_cols:
-        return {
-            "message": f"Missing required columns: {missing_cols}",
-            "code": 400,
-            "status": "fail",
-            "res_data": {}
-        }
+        if missing_cols:
+            return {
+                "message": f"Missing required columns: {missing_cols}",
+                "code": 400,
+                "status": "fail",
+                "res_data": {}
+            }
 
-    total_records = len(df)
+        total_records = len(df)
 
-    df.drop_duplicates(inplace=True)
+        df.drop_duplicates(inplace=True)
 
-    if (df["quantity"] < 0).any():
-        invalid_rows = df[df["quantity"] < 0].index.tolist()
+        if (df["quantity"] < 0).any():
+            invalid_rows = df[df["quantity"] < 0].index.tolist()
 
-        return {
-            "message": f"Negative Quantity values in rows: {invalid_rows}",
-            "code": 400,
-            "status": "fail",
-            "res_data": {}
-        }
+            return {
+                "message": f"Negative Quantity values in rows: {invalid_rows}",
+                "code": 400,
+                "status": "fail",
+                "res_data": {}
+            }
 
-    # Convert Date
-    df["sale_date"] = pd.to_datetime(
-        df["sale_date"], errors="coerce"
-    ).dt.strftime("%Y-%m-%d")
+        # Convert Date
+        df["sale_date"] = pd.to_datetime(
+            df["sale_date"], errors="coerce"
+        ).dt.strftime("%Y-%m-%d")
 
-    # Invalid rows
-    invalid_rows = df[df["sale_date"].isna()].index.tolist()
+        # Invalid rows
+        invalid_rows = df[df["sale_date"].isna()].index.tolist()
 
-    # Remove invalid rows
-    df = df[df["sale_date"].notna()]
+        # Remove invalid rows
+        df = df[df["sale_date"].notna()]
 
-    # Convert NaN → None
-    df = df.where(pd.notnull(df), None)
+        # Convert NaN → None
+        df = df.where(pd.notnull(df), None)
 
-    upload_obj = upload(
-        file_name = file.filename,
-        file_path = file_path,
-        total_records=total_records,
-        invalid_rows_count=len(invalid_rows),
-        invalid_rows=invalid_rows,
-        file_type="sales"
-    )
-
-    # Insert uploaded file metadata
-    upload_id = insert_upload_file(upload_obj, user_details.get("org_id"))
-
-    # Convert dataframe rows → Sales Model
-    sales_objects = []
-
-    for _, row in df.iterrows():
-
-        sale = Sales(
-            employee_id=row["employee_id"],
-            branch=row["branch"],
-            role=row["role"],
-            email=None,   # CSV does not contain email
-            vehicle_model=row["vehicle_model"],
-            quantity=row["quantity"],
-            sale_date=row["sale_date"],
-            vehicle_type=row["vehicle_type"]
+        upload_obj = upload(
+            file_name = file.filename,
+            file_path = file_path,
+            total_records=total_records,
+            invalid_rows_count=len(invalid_rows),
+            invalid_rows=invalid_rows,
+            file_type="sales"
         )
 
-        sales_objects.append(sale)
+        # Insert uploaded file metadata
+        upload_id = insert_upload_file(upload_obj, user_details.get("org_id"))
 
-    # Insert sales records
-    inserted_count = insert_sales_records(sales_objects, upload_id, user_details.get("org_id"))
+        # Convert dataframe rows → Sales Model
+        sales_objects = []
 
-    return {
-        "message": f"{inserted_count} sales records uploaded successfully",
-        "code": 200,
-        "status": "success",
-        "res_data": {
+        for _, row in df.iterrows():
+
+            sale = Sales(
+                employee_id=row["employee_id"],
+                branch=row["branch"],
+                role=row["role"],
+                email=None,   # CSV does not contain email
+                vehicle_model=row["vehicle_model"],
+                quantity=row["quantity"],
+                sale_date=row["sale_date"],
+                vehicle_type=row["vehicle_type"]
+            )
+
+            sales_objects.append(sale)
+
+        # Insert sales records
+        inserted_count = insert_sales_records(sales_objects, upload_id, user_details.get("org_id"))
+        message = f"{inserted_count} sales records uploaded successfully"
+        code = 200
+        status = "success"
+        res_data = {
             "upload_id": upload_id,
             "records_processed": inserted_count,
             "invalid_rows": invalid_rows
         }
+
+    except Exception as ex:
+        message = f"Error fetching calculations: {str(ex)}"
+        code = 500
+        status = "fail"
+
+    return {
+        "message": message,
+        "code": code,
+        "status": status,
+        "res_data": res_data
     }
 
 async def process_incentive_file(file: UploadFile, current_user_id: str):
+    message = ""
+    code = 500
+    status = "fail"
+    res_data = {}
 
+    try:
     # Save uploaded file
-    file_path = save_temp_file(file)
+        file_path = save_temp_file(file)
 
-    # Get user details
-    user_details = get_user_details(current_user_id)
+        # Get user details
+        user_details = get_user_details(current_user_id)
 
-    # Read CSV safely
-    if file.filename.endswith(".csv"):
-        df = pd.read_csv(file_path)
-    else:
-        return {
-            "message": "Only CSV files are allowed",
-            "code": 400,
-            "status": "fail",
-            "res_data": {}
-        }
+        # Read CSV safely
+        if file.filename.endswith(".csv"):
+            df = pd.read_csv(file_path)
+        else:
+            code = 400
+            message = "Only CSV files are allowed"
 
-    # Clean column names
-    df.columns = (
-        df.columns
-        .str.strip()
-        .str.lower()
-        .str.replace(" ", "_")
-    )
-
-
-    required_columns = [
-        "rule_id",
-        "role",
-        "vehicle_type",
-        "min_units",
-        "max_units",
-        "incentive_amount_inr",
-        "bonus_per_unit_inr",
-        "valid_from",
-        "valid_to",
-        "rule_type"
-    ]
-
-    # Check missing columns
-    missing_cols = [col for col in required_columns if col not in df.columns]
-
-    if missing_cols:
-        return {
-            "message": f"Missing required columns: {missing_cols}",
-            "code": 400,
-            "status": "fail",
-            "res_data": {}
-        }
-
-    total_records = len(df)
-
-    # Remove duplicates
-    df = df.drop_duplicates()
-
-    # Convert date columns
-    df["valid_from"] = pd.to_datetime(df["valid_from"], errors="coerce")
-    df["valid_to"] = pd.to_datetime(df["valid_to"], errors="coerce")
-
-    # Find invalid rows
-    invalid_rows = df[
-        df["valid_from"].isna() |
-        df["valid_to"].isna() |
-        df["rule_id"].isna()
-    ]
-
-    # Convert numeric columns
-    numeric_cols = [
-        "min_units",
-        "max_units",
-        "incentive_amount_inr",
-        "bonus_per_unit_inr"
-    ]
-
-    for col in numeric_cols:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-
-    df = df.dropna(subset=numeric_cols)
-
-    # Format date again
-    df["valid_from"] = df["valid_from"].dt.strftime("%Y-%m-%d")
-    df["valid_to"] = df["valid_to"].dt.strftime("%Y-%m-%d")
-
-    # Prepare upload metadata
-    upload_obj = upload(
-        file_name=file.filename,
-        file_path=file_path,
-        total_records=total_records,
-        invalid_rows_count=len(invalid_rows),
-        invalid_rows=invalid_rows.to_dict(orient="records"),
-        file_type="incentive"
-    )
-
-    # Insert uploaded file record
-    upload_id = insert_upload_file(upload_obj, user_details.get("org_id"))
-
-    # Convert dataframe rows → Incentive Model
-    incentive_objects = []
-
-    for _, row in df.iterrows():
-
-        incentive = Incentive(
-            rule_id=row["rule_id"],
-            role=row["role"],
-            vehicle_type=row["vehicle_type"],
-            min_units=row["min_units"],
-            max_units=row["max_units"],
-            incentive_amount_inr=row["incentive_amount_inr"],
-            bonus_per_unit_inr=row["bonus_per_unit_inr"],
-            valid_from=row["valid_from"],
-            valid_to=row["valid_to"],
-            rule_type=row["rule_type"]
+        # Clean column names
+        df.columns = (
+            df.columns
+            .str.strip()
+            .str.lower()
+            .str.replace(" ", "_")
         )
 
-        incentive_objects.append(incentive)
 
-    # Insert incentive records
-    inserted_count = insert_incentive_records(
-        incentive_objects,
-        upload_id,
-        user_details.get("org_id")
-    )
+        required_columns = [
+            "rule_id",
+            "role",
+            "vehicle_type",
+            "min_units",
+            "max_units",
+            "incentive_amount_inr",
+            "bonus_per_unit_inr",
+            "valid_from",
+            "valid_to",
+            "rule_type"
+        ]
 
-    return {
-        "message": "Incentive data uploaded successfully",
-        "code": 200,
-        "status": "success",
-        "res_data": {
+        # Check missing columns
+        missing_cols = [col for col in required_columns if col not in df.columns]
+
+        if missing_cols:
+            return {
+                "message": f"Missing required columns: {missing_cols}",
+                "code": 400,
+                "status": "fail",
+                "res_data": {}
+            }
+
+        total_records = len(df)
+
+        # Remove duplicates
+        df = df.drop_duplicates()
+
+        # Convert date columns
+        df["valid_from"] = pd.to_datetime(df["valid_from"], errors="coerce")
+        df["valid_to"] = pd.to_datetime(df["valid_to"], errors="coerce")
+
+        # Find invalid rows
+        invalid_rows = df[
+            df["valid_from"].isna() |
+            df["valid_to"].isna() |
+            df["rule_id"].isna()
+        ]
+
+        # Convert numeric columns
+        numeric_cols = [
+            "min_units",
+            "max_units",
+            "incentive_amount_inr",
+            "bonus_per_unit_inr"
+        ]
+
+        for col in numeric_cols:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+        df = df.dropna(subset=numeric_cols)
+
+        # Format date again
+        df["valid_from"] = df["valid_from"].dt.strftime("%Y-%m-%d")
+        df["valid_to"] = df["valid_to"].dt.strftime("%Y-%m-%d")
+
+        # Prepare upload metadata
+        upload_obj = upload(
+            file_name=file.filename,
+            file_path=file_path,
+            total_records=total_records,
+            invalid_rows_count=len(invalid_rows),
+            invalid_rows=invalid_rows.to_dict(orient="records"),
+            file_type="incentive"
+        )
+
+        # Insert uploaded file record
+        upload_id = insert_upload_file(upload_obj, user_details.get("org_id"))
+
+        # Convert dataframe rows → Incentive Model
+        incentive_objects = []
+
+        for _, row in df.iterrows():
+
+            incentive = Incentive(
+                rule_id=row["rule_id"],
+                role=row["role"],
+                vehicle_type=row["vehicle_type"],
+                min_units=row["min_units"],
+                max_units=row["max_units"],
+                incentive_amount_inr=row["incentive_amount_inr"],
+                bonus_per_unit_inr=row["bonus_per_unit_inr"],
+                valid_from=row["valid_from"],
+                valid_to=row["valid_to"],
+                rule_type=row["rule_type"]
+            )
+
+            incentive_objects.append(incentive)
+
+        # Insert incentive records
+        inserted_count = insert_incentive_records(
+            incentive_objects,
+            upload_id,
+            user_details.get("org_id")
+        )
+        
+        message = f"{inserted_count} incentive records uploaded successfully"
+        code = 200
+        status = "success"
+        res_data = {
             "upload_id": upload_id,
             "records_processed": inserted_count,
             "invalid_rows_count": len(invalid_rows),
             "invalid_rows": invalid_rows.to_dict(orient="records")
         }
+    
+    except Exception as ex:
+        message = f"Error fetching calculations: {str(ex)}"
+        code = 500
+        status = "fail"
+
+    return {
+        "message": message,
+        "code": code,
+        "status": status,
+        "res_data": res_data
     }
 
 async def process_ad_hoc_file(file: UploadFile, current_user_id: str):
-
+    message = ""
+    code = 500
+    status = "fail"
+    res_data = {}
     try:
         # ---------- Validate ----------
         if not file.filename.endswith(".txt"):
+            message = "Only TXT files are allowed"
+            code = 400
             return {
-                "message": "Only TXT files allowed",
-                "status": "fail",
-                "code": 400,
-                "res_data": {}
+                "message": message,
+                "code": code,
+                "status": status,
+                "res_data": res_data
             }
 
         # ---------- Read file ----------
         content = await file.read()
 
         if not content:
+            code = 400
+            message = "File is empty"
             return {
-                "message": "File is empty",
-                "status": "fail",
-                "code": 400,
-                "res_data": {}
+                "message": message,
+                "code": code,
+                "status": status,
+                "res_data": res_data
             }
 
         text = content.decode("utf-8")
 
         if not text.strip():
+            message = "TXT file is empty"
+            code = 400
             return {
-                "message": "TXT file is empty",
-                "status": "fail",
-                "code": 400,
-                "res_data": {}
+                "message": message,
+                "code": code,
+                "status": status,
+                "res_data": res_data
             }
 
         # ---------- Save file ----------
@@ -302,11 +336,13 @@ async def process_ad_hoc_file(file: UploadFile, current_user_id: str):
         df, invalid_rows = extract_with_pandas(text)
 
         if df.empty:
+            message = "No valid schemes found"
+            code = 400
             return {
-                "message": "No valid schemes found",
-                "status": "fail",
-                "code": 400,
-                "res_data": {}
+                "message": message,
+                "code": code,
+                "status": status,
+                "res_data": res_data
             }
 
         # =========================================================
@@ -355,27 +391,27 @@ async def process_ad_hoc_file(file: UploadFile, current_user_id: str):
             org_id=org_id
         )
 
+        message = "File processed successfully"
+        code = 200
+        status = "success"
+        res_data = {
+            "upload_id": upload_id,
+            "total_records": total_records,
+            "invalid_rows": invalid_rows,
+        }
+
         # =========================================================
         # 🚀 RESPONSE
         # =========================================================
-        return {
-            "message": "File processed successfully",
-            "status": "success",
-            "code": 200,
-            "res_data": {
-                "upload_id": upload_id,
-                "total_records": total_records,
-                "invalid_rows": invalid_rows
-            }
-        }
 
     except Exception as e:
-        return {
-            "message": str(e),
-            "status": "fail",
-            "code": 500,
-            "res_data": {}
-        }
+        message = f"Error processing ad-hoc file: {str(e)}"
+    return {
+        "message": message,
+        "code": code,
+        "status": status,
+        "res_data": res_data
+    }
 
 async def get_uploaded_files_service(current_user_id: str):
 
