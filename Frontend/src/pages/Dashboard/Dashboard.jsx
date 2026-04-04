@@ -2,7 +2,9 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/sidebar/sidebar";
 import "./Dashboard.css";
-import BASE_URL from "../../config/apiConfig";
+
+// ✅ Import the service function (not raw fetch here)
+import { fetchDashboardData } from "../../services/dashboardService";
 
 /* ─── Helpers ─────────────────────────────────────────────── */
 const fmt = (num) =>
@@ -58,39 +60,24 @@ const Dashboard = () => {
   const [error, setError]     = useState(null);
 
   useEffect(() => {
-    const fetchMetrics = async () => {
+    const loadDashboard = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const res = await fetch(`${BASE_URL}/dashboard/metrics`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            "x-access-token": localStorage.getItem("token") || "",
-          },
-        });
+        // ✅ Just call the service function — no fetch logic here
+        const resData = await fetchDashboardData();
+        setData(resData);
 
-        const json = await res.json();
-
-        if (!res.ok) {
-          throw new Error(json.message || `Server error: ${res.status}`);
-        }
-
-        if (json.code !== 200 || json.status !== "success") {
-          throw new Error(json.message || "Unexpected response from server");
-        }
-
-        setData(json.res_data);
       } catch (err) {
-        console.error("Dashboard API Error:", err);
+        console.error("Dashboard load error:", err);
         setError(err.message || "Failed to load dashboard data");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchMetrics();
+    loadDashboard();
   }, []);
 
   /* ── Derived values ── */
@@ -300,13 +287,9 @@ const Dashboard = () => {
                           </svg>
                         </div>
                         <div className="batch-row__info">
-                          <span
-                            className="batch-row__id"
-                            title={batch.calculation_batch_id}
-                          >
+                          <span className="batch-row__id" title={batch.calculation_batch_id}>
                             {batch.batch_name}
                           </span>
-
                           <span className="batch-row__period">📆 {batch.calculation_period}</span>
                         </div>
                         <div className="batch-row__meta">
@@ -366,7 +349,9 @@ const Dashboard = () => {
                           <RankBadge rank={i + 1} />
                           <div className="earner-info">
                             <div className="earner-top">
-                              <span className="earner-id">{emp.employee_id}-{emp.batch_name}</span>
+                              <span className="earner-id">
+                                {emp.employee_id} — {emp.batch_name}
+                              </span>
                             </div>
                             <div className="earner-bar-track">
                               <div
